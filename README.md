@@ -6,7 +6,7 @@
 
 <br clear="left">
 
-> **Status: pre-implementation.** The specification is complete; the code is not yet scaffolded. See [docs/spec.md](docs/spec.md) §13 for the build plan. Not yet on the Chrome Web Store.
+> **Status: in development.** Phase 0 is done — the extension builds and loads, but has no features yet. See [docs/spec.md](docs/spec.md) §13 for the build plan. Not yet on the Chrome Web Store.
 
 ---
 
@@ -37,7 +37,7 @@ All three are also available from the toolbar popup and the right-click menu. Sh
 
 ## Installing
 
-Not yet published. To run it from source once the code exists:
+Not yet published. To run it from source:
 
 ```bash
 npm install
@@ -87,6 +87,8 @@ The core of this extension is putting a problem statement — content published 
 | [docs/domain.md](docs/domain.md) | Vocabulary, business rules, invariants — the concepts the code must honour |
 | [docs/decisions.md](docs/decisions.md) | Decision log — why the project is built the way it is |
 | [docs/todo.md](docs/todo.md) | Open items and pending decisions |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed, release by release |
+| [docs/TESTING.md](docs/TESTING.md) | Automated checks and the manual smoke matrix |
 | [docs/implementation-plan/](docs/implementation-plan/) | Phase-by-phase build plan |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | The privacy statement |
 

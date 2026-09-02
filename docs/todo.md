@@ -98,11 +98,11 @@ Detail in [spec.md](spec.md) §13.
 
 ## 9. Docs due at M8
 
-- [ ] `TESTING.md` — the manual smoke matrix promised in [architecture.md](architecture.md) §12
-- [ ] `CHANGELOG.md`
+- [x] `TESTING.md` — the manual smoke matrix promised in [architecture.md](architecture.md) §12
+- [x] `CHANGELOG.md`
 - [ ] Store listing copy + permission justifications
 
-**Notes:** _—_
+**Notes:** _TESTING.md and CHANGELOG.md created early (2026-09-03) rather than at M8, so they can be maintained phase by phase instead of reconstructed at the end. Store listing copy still belongs at M8._
 
 ---
 
@@ -114,6 +114,22 @@ Each names its own trigger in [decisions.md](decisions.md). None needs action be
 - [ ] **D026** Figure handling — revisit if figure-heavy problems prove common
 - [ ] **D027** Paywall detection — revisit if detection proves unreliable
 - [ ] **D032** No remote selector config — revisit if breakage blast radius proves intolerable
+
+**Notes:** _—_
+
+---
+
+## 11. Verify the scaffold in Chrome
+
+Phase 0 is automated-green but these need a real browser:
+
+- [ ] `dist/` loads unpacked with no errors on the extension card
+- [ ] Toolbar icon opens the popup on a LeetCode problem page
+- [ ] Options page opens from the extension card
+- [ ] `chrome://extensions/shortcuts` lists all three commands, `Alt+Shift+Y` and `Alt+Shift+G` bound
+- [ ] Confirm the two default shortcuts don't collide with LeetCode's own editor hotkeys
+
+Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3.
 
 **Notes:** _—_
 

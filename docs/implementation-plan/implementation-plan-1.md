@@ -1,8 +1,8 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** not started.
-**Last updated:** 2026-09-02
+**Status:** phase 0 complete (4 manual Chrome checks outstanding). Phase 1 is next.
+**Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
 
@@ -41,35 +41,58 @@ Every phase carries four standing subheadings:
 
 ### Tasks
 
-- [ ] `npm init`; install React, React DOM, TypeScript, Vite, `@crxjs/vite-plugin`, Vitest, jsdom, type packages
-- [ ] `tsconfig.json` — strict mode on
-- [ ] `vite.config.ts` with the CRXJS plugin; separate entry points so popup/options bundle React and content scripts do not
-- [ ] `manifest.config.ts` — MV3, name "DSA Helper", version `0.1.0`, icons from `public/icons/`
-- [ ] Manifest permissions exactly as [spec.md](../spec.md) §10 — no `<all_urls>`
-- [ ] Manifest `commands`: `search-youtube` → `Alt+Shift+Y`, `ask-chatgpt` → `Alt+Shift+G`, `copy-prompt` unbound
-- [ ] Content script match patterns for the four platforms and `chatgpt.com`
-- [ ] Folder skeleton per [spec.md](../spec.md) §4.2 with placeholder files
-- [ ] Minimal React popup ("DSA Helper" and nothing else) and an empty options page
-- [ ] Service worker entry that registers listeners at top level and does nothing
-- [ ] Scripts: `dev`, `build`, `test`, `typecheck`
-- [ ] `.gitignore` — `node_modules`, `dist`
+- [x] `npm init`; install React, React DOM, TypeScript, Vite, `@crxjs/vite-plugin`, Vitest, jsdom, type packages
+- [x] `tsconfig.json` — strict mode on
+- [x] `vite.config.ts` with the CRXJS plugin; separate entry points so popup/options bundle React and content scripts do not
+- [x] `manifest.config.ts` — MV3, name "DSA Helper", version `0.1.0`, icons from `public/icons/`
+- [x] Manifest permissions exactly as [spec.md](../spec.md) §10 — no `<all_urls>`
+- [x] Manifest `commands`: `search-youtube` → `Alt+Shift+Y`, `ask-chatgpt` → `Alt+Shift+G`, `copy-prompt` unbound
+- [x] Content script match patterns for the four platforms and `chatgpt.com`
+- [x] Folder skeleton per [spec.md](../spec.md) §4.2 with placeholder files
+- [x] Minimal React popup ("DSA Helper" and nothing else) and an empty options page
+- [x] Service worker entry that registers listeners at top level and does nothing
+- [x] Scripts: `dev`, `build`, `test`, `typecheck`
+- [x] `.gitignore` — `node_modules`, `dist`
 
 ### Decisions
 
-_None yet._
+None significant enough for [decisions.md](../decisions.md) — phase 0 executed [D011](../decisions.md) (the stack) as planned. Four working choices worth recording here:
+
+- **The MAIN-world editor bridge was registered in phase 0, not phase 2.** It is an inert stub, but registering it now proved CRXJS emits `world: "MAIN"` correctly — the one plugin risk this plan flagged. That risk is retired; phase 2 can build on it rather than discover a problem late.
+- **Vitest config kept separate** (`vitest.config.ts`). The CRXJS plugin has no business running during unit tests.
+- **Production builds are minified with no sourcemaps.** The bundle budget is < 500 KB and there is no reason to ship full source to every user; `vite dev` has sourcemaps regardless.
+- **Toolchain pinned:** Vite 8.2.2, CRXJS 2.7.1, React 19.2, TypeScript 5.9, Vitest 4.1. CRXJS 2.7.1 declares Vite 8 support, so no version compromise was needed.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase was ambiguous enough to need a decision from the user.
 
 ### Track
 
-Not started.
+**Phase complete**, except four checks that require a real Chrome and cannot be automated from here. Verified automatically:
+
+- `npm run typecheck`, `npm test`, `npm run build` all pass, no warnings
+- `dist/manifest.json` correct: MV3, the four platform match patterns, `chatgpt.com`, all three commands, and **`world: "MAIN"` on the editor bridge**
+- Bundle ~197 KB total, well under the 500 KB budget
+- Content-script and service-worker chunks are < 1 KB — **no React outside popup/options**, confirming [D012](../decisions.md)
+- Popup HTML mounts React, applies its CSS, and logs no console errors (served from `dist/` and loaded in a browser)
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3 and [todo.md](../todo.md) #11:**
+
+1. `dist/` loads unpacked in Chrome with no card errors
+2. Toolbar icon opens the popup on a LeetCode problem page
+3. Options page opens from the extension card
+4. `chrome://extensions/shortcuts` lists all three commands with the two defaults bound
+
+**Next action:** phase 1 — start with `src/core/types.ts`, then the `html2md` LaTeX and figure tests before their implementation.
 
 ### Additional Notes
 
-- Verify the CRXJS plugin's current MV3 support before committing to it; if it fights the MAIN-world content script needed in Phase 2, a plain Vite multi-entry build with a hand-written manifest is the fallback.
-- Keep the manifest generated from TypeScript so permissions stay reviewable in one typed place.
+- **CRXJS 2.7.1 handles `world: "MAIN"`.** The fallback plan (plain Vite multi-entry + hand-written manifest) is not needed.
+- CRXJS rewrites `background.service_worker` to a generated `service-worker-loader.js`; the manifest's source path stays `src/background/index.ts`.
+- It also auto-generates `web_accessible_resources` for content scripts, with duplicated match entries — cosmetic, harmless, not worth working around.
+- `allowImportingTsExtensions` was needed in `tsconfig.json` so `vite.config.ts` can import `./manifest.config.ts` with its extension, which silences a Vite 8 native-config-loader warning.
+- Popup and options are emitted at `dist/src/popup/index.html` and `dist/src/options/index.html` — CRXJS preserves the source path.
 
 ---
 
@@ -367,8 +390,8 @@ Not started.
 ### Tasks
 
 - [ ] Full smoke matrix: 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions ([architecture.md](../architecture.md) §12)
-- [ ] `TESTING.md` — that matrix as a repeatable checklist
-- [ ] `CHANGELOG.md`
+- [x] `TESTING.md` — that matrix as a repeatable checklist — created 2026-09-03, maintained per phase
+- [x] `CHANGELOG.md` — created 2026-09-03, maintained per phase
 - [ ] Review every user-facing string: warnings, toasts, banners, empty states
 - [ ] Theme correctness in both light and dark
 - [ ] Performance check against the budgets in [architecture.md](../architecture.md) §7 — especially content-script load cost
