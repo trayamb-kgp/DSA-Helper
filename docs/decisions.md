@@ -1,0 +1,507 @@
+# DSA Helper — Decision Log
+
+**A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
+
+**Last updated:** 2026-09-02
+
+---
+
+## How to use this file
+
+**Reading it:** if you're about to change something and can't tell why it's built the way it is, the answer should be here. If a decision looks wrong, read its *Consequences* before overturning it — most of the awkward-looking choices are paying for something.
+
+**Adding to it.** Record a decision when it:
+
+- constrains future work (something later becomes hard or impossible),
+- was contested — a real alternative was rejected,
+- would be re-litigated by someone who didn't know the reasoning, or
+- reverses or narrows an earlier decision.
+
+**Don't record:** naming a variable, picking a library version, a bug fix, or anything already fully explained in the other three documents. This file holds *reasoning*, not specification — link to the other documents rather than restating them.
+
+**Changing a decision:** never edit a decision's substance in place and never delete one. Add a new entry, and mark the old one `Superseded by D0xx` with the date. The wrong turn is often the most useful thing in the file.
+
+**Status vocabulary:** `Accepted` · `Superseded by D0xx` · `Deprecated` (no longer applies, nothing replaced it) · `Proposed` (agreed in principle, not yet in effect) · `Revisit` (accepted, but with a known trigger for reconsideration).
+
+---
+
+## Index
+
+| ID | Decision | Status | Date |
+|---|---|---|---|
+| **Product & scope** ||||
+| [D001](#d001) | Four platforms; problem pages only | Accepted | 2026-09-01 |
+| [D002](#d002) | Three trigger surfaces, no on-page floating button | Accepted | 2026-09-01 |
+| [D003](#d003) | Prompt is injected into ChatGPT but never sent | Accepted | 2026-09-01 |
+| [D004](#d004) | ChatGPT is the only AI destination in v1 | Accepted | 2026-09-01 |
+| [D005](#d005) | Both texts are user-owned templates | Accepted | 2026-09-01 |
+| [D006](#d006) | YouTube query is configured, not edited per problem | Accepted | 2026-09-01 |
+| [D007](#d007) | Contest pages get no special handling | Accepted (extended 2026-09-02) | 2026-09-01 |
+| [D008](#d008) | Clipboard action and history included in v1 | Accepted | 2026-09-01 |
+| [D009](#d009) | Name "DSA Helper"; icons generated, not sourced | Accepted | 2026-09-01 |
+| **Architecture** ||||
+| [D010](#d010) | No backend, no network calls of our own | Accepted | 2026-09-01 |
+| [D011](#d011) | React + TypeScript + Vite | Accepted | 2026-09-01 |
+| [D012](#d012) | React confined to popup and options | Accepted | 2026-09-01 |
+| [D013](#d013) | Service worker owns all orchestration | Accepted | 2026-09-01 |
+| [D014](#d014) | Layered code capture, with provenance | Accepted | 2026-09-01 |
+| [D015](#d015) | Per-field extraction isolation | Accepted | 2026-09-01 |
+| [D016](#d016) | Degrade, never dead-end | Accepted | 2026-09-01 |
+| [D017](#d017) | Prompt handoff is per-tab, one-shot, memory-only | Accepted | 2026-09-01 |
+| [D018](#d018) | Storage split three ways; code never written to disk | Accepted | 2026-09-01 |
+| [D019](#d019) | Versioned settings with a migration chain | Accepted | 2026-09-01 |
+| [D020](#d020) | MAIN-world bridge is read-only and authenticated | Accepted | 2026-09-01 |
+| [D021](#d021) | Host permissions required, not optional | Revisit | 2026-09-01 |
+| [D022](#d022) | Statement is truncated before code, never after | Accepted | 2026-09-01 |
+| **Domain & semantics** ||||
+| [D023](#d023) | "Problem", never "question" | Accepted | 2026-09-02 |
+| [D024](#d024) | Identity is platform + identifier, never the URL | Accepted | 2026-09-02 |
+| [D025](#d025) | The open editor language is the solution attempt | Accepted | 2026-09-02 |
+| [D026](#d026) | Statement fidelity: maths verbatim, figures named, language untouched | Revisit | 2026-09-02 |
+| [D027](#d027) | Inaccessible problems are a named condition, not a failure | Revisit | 2026-09-02 |
+| [D028](#d028) | No modelling of multi-part or interactive problems | Accepted | 2026-09-02 |
+| [D029](#d029) | Nothing survives uninstall; templates are copyable | Accepted | 2026-09-02 |
+| **Operations & release** ||||
+| [D030](#d030) | Staged rollout, fixture-gated releases | Accepted | 2026-09-01 |
+| [D031](#d031) | Diagnostics and clipboard bug reports instead of telemetry | Accepted | 2026-09-01 |
+| [D032](#d032) | No remote selector configuration | Revisit | 2026-09-01 |
+| [D033](#d033) | Content-relay position stated publicly | Accepted | 2026-09-02 |
+
+---
+
+## Product & scope
+
+<a id="d001"></a>
+### D001 — Four platforms; problem pages only
+
+**Decision.** Support LeetCode, Codeforces, CodeChef and GeeksforGeeks, on practice **and** contest problem pages. GfG articles, LeetCode Explore, and `leetcode.cn` are out.
+
+**Context.** Every supported page type is a separate parser against a site we don't control, and each one has to be maintained forever.
+
+**Reasoning.** Problem pages are where the need actually occurs — someone reading an article isn't stuck on a problem they're trying to solve. Contest pages were included because their problems are indistinguishable from practice problems once a contest ends, and excluding them would have blocked a large share of Codeforces.
+
+**Alternatives.** Problem pages only (rejected: excludes most of Codeforces, whose problems mostly live under contest URLs); everything on the domain with best-effort fallback (rejected: unbounded maintenance for pages the tool can't serve well).
+
+**Consequences.** Eight page-type parsers to maintain, not four. Each new platform is a new file plus fixtures. The tool is silent on article pages, which some users will read as it being broken.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §3
+
+<a id="d002"></a>
+### D002 — Three trigger surfaces, no on-page floating button
+
+**Decision.** Keyboard shortcut, toolbar popup, and right-click context menu. No widget injected into the page.
+
+**Reasoning.** The shortcut serves the actual use case (hands on keyboard, mid-problem). The popup is where discoverability and configuration live. The context menu costs almost nothing. A floating button was rejected specifically because it puts pixels on someone else's page — the most common reason a coding-site extension gets uninstalled.
+
+**Consequences.** All three surfaces must behave identically, which is why orchestration is centralised ([D013](#d013)). Discoverability rests entirely on the toolbar icon; a first-run hint may be needed if people don't find the shortcuts.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §9
+
+<a id="d003"></a>
+### D003 — Prompt is injected into ChatGPT but never sent
+
+**Decision.** Open ChatGPT, type the prompt into the composer, stop. The user reads it and presses Enter.
+
+**Context.** Four ways to get text into ChatGPT: URL parameter, auto-inject and auto-send, auto-inject and stop, or clipboard.
+
+**Reasoning.** The URL parameter is the most robust but caps out around a few thousand characters — a full statement plus code exceeds that routinely. Auto-sending removes the user's chance to notice that the code captured was the wrong language, or that the statement is truncated. Stopping short is also a **security control**: the prompt contains text scraped from a page we don't control, and a human reading it before sending is the last line of defence against prompt injection.
+
+**Alternatives.** URL query parameter (rejected: truncation); auto-send (rejected: no review step, and it makes the extension the sender rather than the user); clipboard only (kept as the fallback, [D008](#d008)).
+
+**Consequences.** Depends on ChatGPT's composer internals, which is the single most fragile part of the project. Requires a verified-insertion check and a clipboard fallback. Accepted as the cost of the feature working at all.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §7.2, [architecture.md](architecture.md) §13
+
+<a id="d004"></a>
+### D004 — ChatGPT is the only AI destination in v1
+
+**Decision.** One destination. The code is structured so adding Claude or Gemini is a new adapter plus a settings picker, but neither ships.
+
+**Reasoning.** Each destination is a separate fragile DOM integration ([D003](#d003)). Shipping three would triple the most breakable surface before knowing whether anyone wants the other two.
+
+**Consequences.** Users of other assistants are served only by the clipboard action. Adding a destination later requires a settings migration for the new preference.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §12
+
+<a id="d005"></a>
+### D005 — Both texts are user-owned templates
+
+**Decision.** The YouTube query and the ChatGPT prompt are editable templates with named variables, each resettable to default.
+
+**Reasoning.** What makes a good review request is personal — some people want complexity analysis, others want debugging, others want to be told the insight and left to code it. Guessing wrong makes the tool useless; letting people fix it costs a settings page.
+
+**Alternatives.** Fixed prompt with section toggles (rejected: less flexible for no less work); several named preset modes (rejected: more UI, more state, more to maintain — a single editable template covers it).
+
+**Consequences.** The prompt template can approach the per-item sync storage limit, forcing split keys and a size guard. Users can break their own prompt, so reset-to-default is mandatory. Template rendering must handle every variable being absent.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §8
+
+<a id="d006"></a>
+### D006 — YouTube query is configured, not edited per problem
+
+**Decision.** The query comes from the template with no per-problem editing step. The popup shows it read-only before you click.
+
+**Reasoning.** The action's entire value is that it's one keystroke. An edit box before every search destroys that, to fix a problem YouTube's own search box already fixes after you land.
+
+**Alternatives.** Editable preview before opening (rejected: adds a step to the fastest path); both with a toggle (rejected: a setting to work around a step that shouldn't exist).
+
+**Consequences.** A bad query means editing the template or fixing it on YouTube. The read-only preview exists so the query is never a surprise.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §7.1
+
+<a id="d007"></a>
+### D007 — Contest pages get no special handling
+
+**Decision.** Contest problem pages behave exactly like practice pages: no block, no warning, no confirmation. The ethical position is stated plainly in the README instead.
+
+**Extended 2026-09-02:** live and archived contests are also not distinguished — no countdown parsing, no liveness detection anywhere in the codebase.
+
+**Context.** Using AI assistance during a live contest violates LeetCode's, Codeforces' and CodeChef's rules. The tool could block it, warn about it, or say nothing.
+
+**Reasoning.** The product decision is to inform rather than police. A user who wants to break contest rules can open ChatGPT in another tab regardless, so a block buys integrity theatre at the cost of breaking the tool on archived contest problems — which are just practice. The liveness extension follows from the same logic: detection would be per-platform, fragile, and would only enable a restriction that was already declined.
+
+**Alternatives.** Block with settings override; warn once and proceed; hard block. All rejected as restricting a choice the user is entitled to make, and as requiring detection code that would break.
+
+**Consequences.** The project accepts a reputational risk — being called a cheating tool — mitigated only by stating the position plainly. Zero contest-detection code, which is also a real maintenance saving.
+
+**Status.** Accepted · 2026-09-01, extended 2026-09-02 · see [spec.md](spec.md) §11, [domain.md](domain.md) R26
+
+<a id="d008"></a>
+### D008 — Clipboard action and history included in v1
+
+**Decision.** Ship "copy prompt to clipboard" as a first-class action, and a list of recently visited problems.
+
+**Reasoning.** The clipboard action is not a nice-to-have: it's the terminal fallback whenever ChatGPT injection fails ([D003](#d003)), so it must exist anyway — exposing it as its own action costs one button. History is cheap and covers a real pattern: returning to a problem attempted yesterday.
+
+**Consequences.** History creates the only persistent record of user activity, which forces the "identity only, never statements, never code" constraint and the surrounding controls ([D029](#d029)).
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §7.3, §9.2
+
+<a id="d009"></a>
+### D009 — Name "DSA Helper"; icons generated, not sourced
+
+**Decision.** Named DSA Helper. Placeholder icons generated locally by a script in `tools/`, not downloaded from a free-icon site.
+
+**Reasoning.** Free icon resources almost always carry attribution requirements that follow the project into a store listing, and downloading binaries from untrusted hosts isn't worth it for a placeholder. A generated icon has no licence attached at all.
+
+**Consequences.** Icons are geometric rather than designed; final artwork drops into the same four paths with no other change.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §2
+
+---
+
+## Architecture
+
+<a id="d010"></a>
+### D010 — No backend, no network calls of our own
+
+**Decision.** The extension never originates an HTTP request. No servers, no accounts, no API keys, no analytics, no telemetry.
+
+**Context.** The project is intended for the Chrome Web Store at potentially large scale.
+
+**Reasoning.** This is the **load-bearing decision of the whole project.** It makes scaling free (a million users cost what a hundred do), makes the privacy claim structurally true rather than a promise, and makes Web Store review straightforward. Everything else is downstream of it.
+
+**Consequences.** No usage data, ever — product decisions are made blind. Breakage must be found through fixtures and user reports rather than error rates. Any future feature needing a server inverts this and must be decided deliberately, not arrived at. Constrains [D031](#d031) and [D032](#d032).
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §2, §10
+
+<a id="d011"></a>
+### D011 — React + TypeScript + Vite
+
+**Decision.** Manifest V3, React + TypeScript, bundled with Vite via `@crxjs/vite-plugin`.
+
+**Alternatives.** Plain JS with no build step (rejected: no type safety across a message-passing boundary where shape errors are the likely bug class); TypeScript + Vite without React (viable, but the options page has enough stateful form UI to justify it).
+
+**Consequences.** A build step between editing and testing. Bundle size needs watching, which is why [D012](#d012) exists.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §4
+
+<a id="d012"></a>
+### D012 — React confined to popup and options
+
+**Decision.** Content scripts and the service worker ship zero React. Separate bundles; content scripts import nothing from the UI layer.
+
+**Reasoning.** Content scripts run on every problem page, forever, on every user's machine including slow ones. Shipping a UI framework into that path buys nothing — there is no UI on the page ([D002](#d002)) — and costs load time on someone else's site, which is how an extension gets blamed for making a site feel slow.
+
+**Consequences.** A hard architectural boundary that must not be crossed casually; any shared code lives in the framework-free core.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §7
+
+<a id="d013"></a>
+### D013 — Service worker owns all orchestration
+
+**Decision.** Commands, menus, action dispatch, prompt building and tab creation all live in the service worker. The popup is a renderer.
+
+**Reasoning.** Two of the three trigger surfaces ([D002](#d002)) never open a popup, so popup-hosted logic would need duplicating. One dispatch path means the surfaces cannot drift apart in behaviour.
+
+**Consequences.** All logic must survive the service worker being killed after ~30 s idle: no in-memory state, listeners registered synchronously at top level, handoffs through storage ([D017](#d017)).
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §4.1, §5.1
+
+<a id="d014"></a>
+### D014 — Layered code capture, with provenance
+
+**Decision.** Try, in order: the site's own stored buffer, the editor's model via an injected page script, a DOM scrape of rendered lines, then the user's text selection. Record which one succeeded and show it to the user.
+
+**Context.** All four sites use virtualised editors, so the obvious approach — reading the DOM — silently returns only the visible lines.
+
+**Reasoning.** A truncated solution produces a confidently wrong review, which is worse than no review. The ordering puts complete sources first and marks the incomplete one as untrustworthy rather than excluding it.
+
+**Alternatives.** Editor API only (rejected: single point of failure); selection only (rejected: adds a step to every use); no code at all (rejected: it's the core value).
+
+**Consequences.** The most site-specific code in the project, four layers per adapter. Provenance must be carried through to the UI and the prompt. On Codeforces the expected outcome is *no code*, which is correct behaviour and must not be treated as an error.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §6.4
+
+<a id="d015"></a>
+### D015 — Per-field extraction isolation
+
+**Decision.** Every extracted field has its own guard. A failure yields a recorded gap, never an exception out of the adapter.
+
+**Context.** All users run identical code against sites that redesign without notice, so any breakage is global and simultaneous, with store review sitting between diagnosis and fix.
+
+**Reasoning.** This converts the realistic worst case from "the extension is broken for everyone" to "the prompt is missing the word Medium". It's the difference between an emergency and a scheduled fix.
+
+**Consequences.** More verbose extraction code. Every consumer must tolerate every field being absent — the invariant that only platform and link are guaranteed. Pairs with [D016](#d016).
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §6.2
+
+<a id="d016"></a>
+### D016 — Degrade, never dead-end
+
+**Decision.** Both actions are defined as a descent through reduced information, ending in a clipboard fallback and an explanation. No code path may end with the user having pressed a key and nothing happening.
+
+**Reasoning.** Silent failure is the worst outcome for a keyboard-driven tool: the user can't tell whether they missed the key, the page is unsupported, or the tool is broken.
+
+**Consequences.** Every failure needs a defined next rung and a message. More paths to test — hence the manual smoke matrix.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §8.2
+
+<a id="d017"></a>
+### D017 — Prompt handoff is per-tab, one-shot, memory-only
+
+**Decision.** A prepared prompt is keyed to the specific tab opened for it, deleted the moment it's claimed, expires after ~5 minutes, and is never written to disk.
+
+**Context.** Refines the original spec, which described a single global slot.
+
+**Reasoning.** Users fire the action from several problem tabs in quick succession; a global slot lets the wrong prompt reach the wrong tab, or a later prompt overwrite an earlier one. Deleting on claim means opening ChatGPT manually an hour later never resurrects an old prompt. Memory-only because the prompt contains the user's code.
+
+**Consequences.** Requires tab-lifecycle cleanup and expiry sweeping. Adds a debounce so holding the shortcut doesn't open twenty tabs.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §5.3
+
+<a id="d018"></a>
+### D018 — Storage split three ways; code never written to disk
+
+**Decision.** Settings and templates sync across devices; history stays local; the pending prompt is memory-only. The user's code is never written to synced or local storage.
+
+**Reasoning.** Templates are worth carrying between machines and are small. History is disposable, per-device, and would burn the sync write quota. Code is the most sensitive thing the extension touches and has no reason to outlive the action using it.
+
+**Consequences.** Three storage areas with different semantics and quotas. A sync size guard is needed because the prompt template can approach the per-item limit ([D005](#d005)).
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §5.2
+
+<a id="d019"></a>
+### D019 — Versioned settings with a migration chain
+
+**Decision.** Stored data carries a schema version; upgrades run ordered migrations; unknown future versions are left untouched rather than overwritten.
+
+**Reasoning.** Matters far more after publishing than during development: users skip versions, and synced data can arrive from a machine running an older build. A user whose carefully written template silently resets writes a bad review.
+
+**Consequences.** Every stored-shape change needs a migration and a fixture of the old shape.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §5.4
+
+<a id="d020"></a>
+### D020 — MAIN-world bridge is read-only and authenticated
+
+**Decision.** The script that reads editor state runs in the page's own JavaScript world, does nothing but read, and exchanges messages with a per-load nonce and origin checks. Responses are length-capped and treated as untrusted.
+
+**Context.** Reading a virtualised editor's full buffer ([D014](#d014)) requires being in the page's world, where the page can see and impersonate our code.
+
+**Reasoning.** If the bridge only ever reads and never evaluates, a hostile page gains nothing by talking to it.
+
+**Consequences.** More protocol code than a direct call. A timeout is required so silence falls through to the next capture layer instead of hanging.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §6.4, §9.1
+
+<a id="d021"></a>
+### D021 — Host permissions required, not optional
+
+**Decision.** The five platform hosts and `chatgpt.com` are required permissions, granted at install, rather than optional ones requested on first use.
+
+**Reasoning.** The extension is completely inert without them, so a deferred grant flow trades an honest install dialog for a confusing first-run failure.
+
+**Alternatives.** Optional host permissions with per-site prompting — genuinely better for install-funnel conversion and the privacy story, at the cost of a first-run grant flow.
+
+**Consequences.** A noisier install dialog listing five sites, which is the largest single drop-off point in the install funnel.
+
+**Status.** **Revisit** — reconsider if install conversion proves to be a problem after publishing · 2026-09-01 · see [architecture.md](architecture.md) §9.3
+
+<a id="d022"></a>
+### D022 — Statement is truncated before code, never after
+
+**Decision.** When a prompt exceeds its size cap, trim the statement first, then the examples. **Never** the user's code.
+
+**Reasoning.** The user's code is the one part the AI can't get anywhere else, and reviewing half a function produces confidently wrong feedback. The statement is partly recoverable from the link.
+
+**Consequences.** A pathologically long solution could crowd out the statement almost entirely. Truncation points must be marked so the model knows text was cut.
+
+**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §7.2
+
+---
+
+## Domain & semantics
+
+<a id="d023"></a>
+### D023 — "Problem", never "question"
+
+**Decision.** One term across all documents, identifiers and user-facing strings: **problem**. "Question" is retired.
+
+**Context.** The original spec used both interchangeably, including a central `QuestionContext` type alongside "problem page" and "problem statement".
+
+**Reasoning.** All four platforms say "problem". "Question" is ambiguous here — the user also asks a *question* of ChatGPT, which is a different thing.
+
+**Consequences.** Rename applied across spec and architecture (`QuestionContext` → `ProblemContext`, "Recent questions" → "Recent problems"). Any future code using "question" for the platform entity is a defect.
+
+**Status.** Accepted · 2026-09-02 · see [domain.md](domain.md) §3.1
+
+<a id="d024"></a>
+### D024 — Identity is platform + identifier, never the URL
+
+**Decision.** A problem is identified by its platform and that platform's identifier. All URL variants collapse to one identity. History holds one entry per problem, moved to the top on return. Identity never crosses platforms.
+
+**Context.** Codeforces `1352A` is reachable at two paths; LeetCode adds `/description/`, `/submissions/` and query suffixes.
+
+**Reasoning.** URL-based identity would make history a wall of near-duplicates. Cross-platform identity would need a curated equivalence dataset that can't exist without a backend ([D010](#d010)).
+
+**Alternatives.** One entry per URL (rejected: visible duplicates); pure chronological log (rejected: a 20-item list could be three problems repeated); de-duplicate without re-ordering (rejected: the problem you're working on now sinks down the list).
+
+**Consequences.** Each adapter must produce a stable identifier — including GfG, which has no number and must use its slug. Entries store the most recently visited URL variant.
+
+**Status.** Accepted · 2026-09-02 · see [spec.md](spec.md) §5.1, [domain.md](domain.md) R19–R20
+
+<a id="d025"></a>
+### D025 — The open editor language is the solution attempt
+
+**Decision.** When several language buffers exist for one problem, the one currently open in the editor is the solution attempt. No picker.
+
+**Reasoning.** What's on screen is what the user is thinking about. Choosing by most-recently-edited can send code the user isn't looking at, producing a review that appears to be about the wrong thing.
+
+**Alternatives.** Most recently edited (rejected: surprising); prompt the user when ambiguous (rejected: adds a step to a one-keystroke flow); send all buffers (rejected: long prompt, unfocused review).
+
+**Consequences.** A user who switched languages and expects a review of the other file gets the visible one. Predictable, but occasionally not what was wanted.
+
+**Status.** Accepted · 2026-09-02 · see [spec.md](spec.md) §6.4
+
+<a id="d026"></a>
+### D026 — Statement fidelity: maths verbatim, figures named, language untouched
+
+**Decision.** LaTeX passes through unmodified. Figures become `[Figure: … — not included]`. Statements are relayed in whatever language the page serves, with no detection or translation.
+
+**Reasoning.** Constraints expressed in maths are exactly what a review must not get wrong, and ChatGPT reads LaTeX natively — so verbatim is both most accurate and cheapest. Figures cannot travel in text at all; naming their absence is the difference between a model that says "I can't see the diagram" and one that reasons confidently without it. Language detection on short mathematical text is unreliable, and ChatGPT is multilingual anyway.
+
+**Alternatives.** Convert LaTeX to plain text (rejected: lossy beyond simple inequalities); drop figures silently (rejected: exactly the failure the disclosure rule exists to prevent); embed figure URLs as images (rejected: ChatGPT can't fetch them, so it reads as breakage).
+
+**Consequences.** Review quality is genuinely capped for figure-heavy problems — the placeholder makes the ceiling visible, it does not raise it. Prompts containing raw LaTeX look noisy to a human skimming them.
+
+**Status.** **Revisit** — if figure-heavy problems prove common in practice, the ceiling may justify a different approach · 2026-09-02 · see [spec.md](spec.md) §6.5
+
+<a id="d027"></a>
+### D027 — Inaccessible problems are a named condition, not a failure
+
+**Decision.** Paywalled or login-gated problems (LeetCode Premium) are detected and reported as their own state — "statement not available to you" — distinct from an extraction failure. Both actions remain available.
+
+**Reasoning.** Without this, every Premium problem produces a false "the extension is broken" impression for something working exactly as intended. At scale that's a steady stream of support mail and bad reviews. The YouTube search is arguably *most* valuable here, since the user can't read the statement at all.
+
+**Alternatives.** Treat as an ordinary capture gap (rejected: the false-breakage impression is the whole problem); block the ChatGPT action (rejected: overrides a judgement the user can make).
+
+**Consequences.** One more per-adapter detection to maintain. If paywall detection proves fragile it degrades to an ordinary capture gap — a regression, not a break.
+
+**Status.** **Revisit** — depends on detection proving reliable in practice · 2026-09-02 · see [spec.md](spec.md) §6.6
+
+<a id="d028"></a>
+### D028 — No modelling of multi-part or interactive problems
+
+**Decision.** One problem, one statement, one attempt. Subtasks, follow-ups and interactive protocols are treated as prose inside the statement.
+
+**Reasoning.** An interactive problem's statement says it's interactive; a follow-up is a paragraph. The AI reads and adjusts. Explicit modelling would add fields across all four adapters for something the prompt already conveys.
+
+**Consequences.** No structured handling if these cases later need distinct treatment.
+
+**Status.** Accepted · 2026-09-02 · see [domain.md](domain.md) §11 U12
+
+<a id="d029"></a>
+### D029 — Nothing survives uninstall; templates are copyable
+
+**Decision.** Accept that removing the extension erases everything. Mitigate with a one-click copy button on each template, and state the behaviour plainly in options.
+
+**Reasoning.** A user may spend real effort on a prompt template. Full export/import is a proper feature — file handling, validation, version tolerance — where a copy button reuses the clipboard path that already exists for the copy-prompt action.
+
+**Alternatives.** Document only, no copy (rejected: leaves an authored asset unrecoverable); full settings export/import (rejected: disproportionate for v1); export including history (rejected: history is the least valuable thing to preserve).
+
+**Consequences.** Backup is manual and easy to forget. Settings still sync between signed-in Chrome installs while the extension is installed.
+
+**Status.** Accepted · 2026-09-02 · see [spec.md](spec.md) §9.4
+
+---
+
+## Operations & release
+
+<a id="d030"></a>
+### D030 — Staged rollout, fixture-gated releases
+
+**Decision.** Every release goes out as a percentage rollout. Adapter tests run against saved HTML fixtures in CI and gate the release. Each adapter records when its selectors were last verified.
+
+**Context.** All users run identical code against sites we don't control, so a bad adapter change breaks everyone at once ([D015](#d015)).
+
+**Reasoning.** A bad release reaching 5% of users is a bug report; reaching 100% is a reputational event. Fixtures are the only mechanism that can detect a site redesign before users do.
+
+**Consequences.** Fixtures must be captured early and refreshed on a schedule, or they rot into a false sense of safety. Releases take longer to reach everyone.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §10.3, §12
+
+<a id="d031"></a>
+### D031 — Diagnostics and clipboard bug reports instead of telemetry
+
+**Decision.** No analytics. Instead: a diagnostics panel that reports field-by-field extraction results for the current page, and a "report a broken page" button that builds a redacted blob — never statement text, never user code — and opens a prefilled issue.
+
+**Reasoning.** Support burden grows linearly with users, but adding telemetry would invert [D010](#d010) and turn a zero-cost extension into an operational service with a real privacy policy. Self-service diagnostics scale to any number of users with no infrastructure.
+
+**Consequences.** Breakage is discovered only when someone reports it. No aggregate view of which adapters are failing or how often.
+
+**Status.** Accepted · 2026-09-01 · see [architecture.md](architecture.md) §10.4
+
+<a id="d032"></a>
+### D032 — No remote selector configuration
+
+**Decision.** Selectors ship in the extension. No fetching them from a remote file to patch breakage without a store review.
+
+**Context.** The obvious fix for global-simultaneous breakage ([D015](#d015)) is remote config, since store review sits between diagnosis and fix.
+
+**Reasoning.** It would introduce the first network call and destroy the "nothing leaves the browser" property that the privacy posture and store review both rest on ([D010](#d010)). Remotely delivered behaviour also sits close enough to the remote-code prohibition to invite review friction.
+
+**Consequences.** Every breakage waits for a release and a review. Mitigated by [D015](#d015) (breakage degrades rather than breaks) and [D030](#d030) (a fast-patch path).
+
+**Status.** **Revisit** — only if blast radius proves intolerable in practice, and then as strictly schema-validated data with a bundled fallback and an honestly updated privacy policy · 2026-09-01 · see [architecture.md](architecture.md) §10.5
+
+<a id="d033"></a>
+### D033 — Content-relay position stated publicly
+
+**Decision.** The README and store listing carry a short statement of the project's position on moving platform-published content into a third-party AI service: it automates a copy-paste the user could do by hand, content moves only on explicit user action, nothing is stored or redistributed, and the user's own agreements with each platform still bind them.
+
+**Context.** Neither the spec nor the architecture originally addressed copyright or platform terms, and the core act of the extension is exactly this relay.
+
+**Reasoning.** Having a prepared, honest answer costs one paragraph. Not having one when a platform or a reviewer asks is a much worse position.
+
+**Alternatives.** Formal legal review (deferred: proportionate for a commercial product, not for a free tool); say nothing (rejected: no prepared answer).
+
+**Consequences.** A public position that has to stay accurate — if the extension ever stores or transmits content, this statement must change first.
+
+**Status.** Accepted · 2026-09-02 · see [README.md](../README.md), [spec.md](spec.md) §11
+
+---
+
+## Superseded and deprecated
+
+*None yet.* When a decision is replaced, it stays in place above with its status changed to `Superseded by D0xx`, and is listed here with a one-line note on what changed and why. The record of the wrong turn is often more useful than the correction.
