@@ -224,6 +224,7 @@ interface ProblemContext {
   code: string | null;          // user's current code
   codeSource: CodeSource;       // provenance, shown in popup for transparency
   isContest: boolean;
+  isLocked: boolean;            // paywalled/login-gated: a named condition, not a failure (D036)
   extractedAt: number;          // epoch ms
   warnings: string[];           // human-readable notes about what could not be read
 }

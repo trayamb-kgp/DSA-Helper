@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phase 0 complete (4 manual Chrome checks outstanding). Phase 1 is next.
+**Status:** phases 0–1 complete (4 manual Chrome checks from phase 0 outstanding). Phase 2 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -104,35 +104,59 @@ None — nothing in this phase was ambiguous enough to need a decision from the 
 
 ### Tasks
 
-- [ ] `types.ts` — `Platform`, `ProblemContext`, `CodeSource`, `Settings`, `HistoryEntry`, `Msg` union ([spec.md](../spec.md) §4.1, §5)
-- [ ] `storage.ts` — typed get/set per area; `promptTemplate` in its own key; size guard warning past ~7 KB; 500 ms write debounce
-- [ ] `migrations.ts` — `schemaVersion`, ordered `v(n)→v(n+1)` chain, unknown future versions left untouched
-- [ ] `templates.ts` — variable substitution; **empty variables collapse and double spaces squeeze**; `{number_suffix}`; `{language_slug}` map (`C++`→`cpp`, `Python3`→`python`, default empty); `DEFAULT_YOUTUBE_TEMPLATE`; `DEFAULT_PROMPT`
-- [ ] `html2md.ts` — headings, lists, `<pre>`/`<code>`, tables, emphasis
-- [ ] `html2md.ts` — **LaTeX passes through verbatim** ([D026](../decisions.md))
-- [ ] `html2md.ts` — **figures become `[Figure: <alt> — not included]`**, never dropped ([D026](../decisions.md))
-- [ ] `html2md.ts` — escape markdown fences in extracted content so a statement can't close our code block ([architecture.md](../architecture.md) §9.2)
-- [ ] `truncate.ts` — statement first, then examples, **never code**; mark every cut point ([D022](../decisions.md))
-- [ ] `history.ts` — `problemKey` = `<platform>:<identifier>`; one entry per problem; revisit bumps to top and updates `url` and `visitedAt`; respects `historyLimit` and `historyPaused` ([D024](../decisions.md))
-- [ ] Missing-section notes: absent statement/examples/constraints render an explicit note, never emptiness ([spec.md](../spec.md) §8)
-- [ ] Unit tests for all of the above, including every-variable-absent rendering
+- [x] `types.ts` — `Platform`, `ProblemContext`, `CodeSource`, `Settings`, `HistoryEntry`, `Msg` union ([spec.md](../spec.md) §4.1, §5)
+- [x] `storage.ts` — typed get/set per area; `promptTemplate` in its own key; size guard warning past ~7 KB; 500 ms write debounce
+- [x] `migrations.ts` — `schemaVersion`, ordered `v(n)→v(n+1)` chain, unknown future versions left untouched
+- [x] `templates.ts` — variable substitution; **empty variables collapse and double spaces squeeze**; `{number_suffix}`; `{language_slug}` map (`C++`→`cpp`, `Python3`→`python`, default empty); `DEFAULT_YOUTUBE_TEMPLATE`; `DEFAULT_PROMPT`
+- [x] `html2md.ts` — headings, lists, `<pre>`/`<code>`, tables, emphasis
+- [x] `html2md.ts` — **LaTeX passes through verbatim** ([D026](../decisions.md))
+- [x] `html2md.ts` — **figures become `[Figure: <alt> — not included]`**, never dropped ([D026](../decisions.md))
+- [x] `html2md.ts` — escape markdown fences in extracted content so a statement can't close our code block ([architecture.md](../architecture.md) §9.2)
+- [x] `truncate.ts` — statement first, then examples, **never code**; mark every cut point ([D022](../decisions.md))
+- [x] `history.ts` — `problemKey` = `<platform>:<identifier>`; one entry per problem; revisit bumps to top and updates `url` and `visitedAt`; respects `historyLimit` and `historyPaused` ([D024](../decisions.md))
+- [x] Missing-section notes: absent statement/examples/constraints render an explicit note, never emptiness ([spec.md](../spec.md) §8)
+- [x] Unit tests for all of the above, including every-variable-absent rendering
 
 ### Decisions
 
-_None yet._
+Three were significant enough to be copied into [decisions.md](../decisions.md):
+
+- **[D034](../decisions.md#d034) — `html2md` takes a DOM `Element`, not an HTML string.** The one module in `core/` that cannot honestly test in plain Node; its tests declare `@vitest-environment jsdom`. Every other `core/` module still runs under plain Node, and `core/` remains free of `chrome.*` without exception.
+- **[D035](../decisions.md#d035) — fence escaping stays narrow.** Only backtick and tilde runs of 3+ are escaped. Escaping `_` or `\` as a general markdown escaper would, would destroy [D026](../decisions.md#d026) on every Codeforces statement.
+- **[D036](../decisions.md#d036) — `isLocked` added to `ProblemContext`.** [spec.md](../spec.md) §5 had no field to carry the state §6.6 and [D027](../decisions.md#d027) require; the spec is amended.
+
+Smaller calls, recorded here only:
+
+- **`truncate.ts` takes a `measure` callback** rather than rendering a template itself. Keeps the module pure, keeps template overhead correctly counted, and lets phase 4 supply the real renderer without this file learning anything about templates.
+- **`storage.ts` reads `chrome` off `globalThis` at call time** instead of importing it, so the size guard, debounce, defaults and merge logic all test in plain Node against a stub. The `chrome` touch points are four lines in one function.
+- **Unknown template placeholders are left in place verbatim**, not deleted. A user's typo should be visible in the options preview rather than silently swallowing itself.
+- **`languageSlug` returns `''` for an unmapped language** rather than guessing from the name. A wrong fence tag is worse than none.
+- **`historyLimit: 0` clears the list; `historyPaused` preserves it.** Two different intentions — "I don't want this feature" versus "not right now" — and [spec.md](../spec.md) §5.1 only pins the second.
+- **Rendered maths is read from its source annotation.** KaTeX and MathJax both stash the original TeX (`annotation[encoding="application/x-tex"]`, `script[type="math/tex"]`); reading it is what makes "verbatim" achievable at all, since the visual layer is unrecoverable glyph soup.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase was ambiguous enough to need a decision from the user. [D034](../decisions.md#d034) bends a stated exit criterion and is flagged there rather than asked, because the alternative (a hand-written HTML parser) is worse on every axis.
 
 ### Track
 
-Not started.
+**Phase complete.**
+
+- `npm run typecheck` clean, `npm test` green at **124 tests across 6 files**, `npm run build` succeeds
+- `core/` contains no reference to `document` and no reference to `chrome.*` outside the four-line accessor in `storage.ts`
+- Every module has a test file: `html2md` (36), `templates` (24), `truncate` (13), `history` (21), `storage` (24), `migrations` (7)
+
+**Next action:** phase 2 — the LeetCode adapter. Start with `adapter.ts` (the `PlatformAdapter` interface) and `resolveAdapter(url)`, which is pure and unit-testable before any page is involved. Capture the practice/contest/Premium fixtures early ([todo.md](../todo.md) #5) — they gate the phase 2 exit criteria and are the only thing that detects a site redesign before users do.
 
 ### Additional Notes
 
-- Write the `html2md` LaTeX and figure tests **first** — they encode [D026](../decisions.md), which is the decision most likely to be undone by accident during a refactor.
-- Truncation tests should include the pathological case: code longer than the entire budget. The statement collapses to almost nothing; the code stays whole.
+- The `html2md` LaTeX and figure tests were written before the implementation, as planned. They caught nothing during the build — but they are now the guard that makes [D035](../decisions.md#d035) enforceable, asserting in both directions: fences *are* escaped, TeX underscores are *not*.
+- **Whitespace normalization would corrupt code and maths**, so verbatim chunks are parked behind a sentinel while the surrounding markdown is squeezed, then restored. Without this, indentation inside a `<pre>` does not survive.
+- **Fences are sized to their content.** A code block containing ``` gets a four-backtick fence rather than an escaped body, which is the correct markdown answer and keeps the sample readable.
+- **List indentation survives normalization** because the squeeze preserves leading whitespace per line. An earlier global squeeze flattened nested lists.
+- Adapters must set `isLocked` explicitly. It has no safe default other than `false`, and a missing one silently reads as "not locked".
+- `truncate.ts` returns `overBudget: true` rather than cutting code when the budget cannot be met. Phase 4 needs to decide what the popup says in that case — [D022](../decisions.md#d022) settles the behaviour but not the wording.
+- Deferred to phase 4, deliberately: assembling the full variable set from a `ProblemContext`. `numberSuffix`, `languageSlug` and `sectionOrNote` are here; the composition that uses them is a prompt-builder concern.
 
 ---
 

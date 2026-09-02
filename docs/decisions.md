@@ -66,6 +66,10 @@
 | [D031](#d031) | Diagnostics and clipboard bug reports instead of telemetry | Accepted | 2026-09-01 |
 | [D032](#d032) | No remote selector configuration | Revisit | 2026-09-01 |
 | [D033](#d033) | Content-relay position stated publicly | Accepted | 2026-09-02 |
+| **Implementation** ||||
+| [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
+| [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
+| [D036](#d036) | Inaccessibility is a field on `ProblemContext` | Accepted | 2026-09-03 |
 
 ---
 
@@ -499,6 +503,57 @@
 **Consequences.** A public position that has to stay accurate — if the extension ever stores or transmits content, this statement must change first.
 
 **Status.** Accepted · 2026-09-02 · see [README.md](../README.md), [spec.md](spec.md) §11
+
+---
+
+## Implementation
+
+Decisions taken while building, rather than while designing. They are listed separately because their provenance matters: each was forced by contact with real code, not chosen up front.
+
+<a id="d034"></a>
+### D034 — `html2md` converts a DOM element, not an HTML string
+
+**Decision.** `html2md(root: Element)` walks a live DOM subtree. It does not accept, or parse, serialized HTML. Its unit tests run under jsdom rather than in plain Node.
+
+**Context.** [architecture.md](architecture.md) §12 asks that `core/` stay free of `document` and `chrome.*` so it tests without a browser. A markdown converter is the one piece of `core/` that cannot honestly meet that bar — it has to parse HTML somehow.
+
+**Reasoning.** Every caller is an adapter that already holds the element; serializing it and re-parsing would be wasted work and a second chance to get the parse wrong. The alternative — a hand-written HTML parser inside `core/` — is a large, permanently fragile surface that has to survive whatever malformed markup four different sites emit, which is precisely the work a browser has already done correctly. Taking an `Element` uses only an ambient DOM *type*, so the module still imports nothing.
+
+**Alternatives.** Hand-rolled string parser (rejected: large surface, real bug risk, no upside); pull in a parser dependency (rejected: bundle cost in a content script for a job the page's own parser already did); require adapters to pre-convert (rejected: moves the same problem into four files instead of one).
+
+**Consequences.** The phase 1 exit criterion "tests in plain Node" holds for every `core/` module except `html2md`, which declares `@vitest-environment jsdom`. `core/` remains free of `chrome.*` without exception. If `html2md` is ever needed somewhere without a DOM, an explicit parse step becomes that caller's problem, not this module's.
+
+**Status.** Accepted · 2026-09-03 · see [implementation-plan-1.md](implementation-plan/implementation-plan-1.md) phase 1
+
+<a id="d035"></a>
+### D035 — Fence escaping is narrow by design
+
+**Decision.** `html2md` escapes exactly two things in extracted text: runs of three or more backticks, and runs of three or more tildes. It does **not** escape `_`, `*`, `^`, `\`, `$` or any other markdown metacharacter.
+
+**Context.** [architecture.md](architecture.md) §9.2 requires that a statement cannot close our code block and inject sibling instructions into the prompt. The obvious implementation is a general-purpose markdown escaper.
+
+**Reasoning.** A general escaper would destroy [D026](#d026). `_`, `^`, `\` and `$` are the working vocabulary of LaTeX, and a Codeforces statement is dense with them — escaping `a_1 \cdot a_2` into `a\_1 \\cdot a\_2` is exactly the lossy plain-text approximation D026 exists to forbid. Only a fence-forming run is actually dangerous, because only a fence can terminate the block that quotes the statement. Escaping the rest buys no security and costs the fidelity the whole feature rests on.
+
+**Alternatives.** Escape all markdown metacharacters (rejected: breaks D026 outright); escape nothing and rely on a longer outer fence (rejected: the outer fence is chosen by the prompt template, which the user can edit); strip fences instead of escaping them (rejected: silently deletes content, and a statement legitimately containing three backticks is a code sample worth keeping).
+
+**Consequences.** Anyone tightening the escaper later must not widen it. The tests in `html2md.test.ts` assert both directions — that fences *are* escaped and that TeX underscores are *not* — so a well-meaning broadening fails the suite rather than quietly degrading every maths-heavy prompt. Fenced code blocks are handled separately, by choosing a fence longer than any backtick run they contain.
+
+**Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §9.2, [D026](#d026)
+
+<a id="d036"></a>
+### D036 — Inaccessibility is a field on `ProblemContext`
+
+**Decision.** `ProblemContext` carries `isLocked: boolean`. [spec.md](spec.md) §5 is amended to include it.
+
+**Context.** [D027](#d027) requires that a paywalled problem be reported as its own condition rather than as an extraction failure, and §6.6 describes the resulting popup text and link-only prompt. The data model in §5 had no field to carry that state, so the two sections contradicted each other.
+
+**Reasoning.** Without a field, the locked state can only be inferred from the shape of a failure — a null statement plus a populated title — which is exactly the ambiguity D027 exists to remove, and would leave a genuinely broken selector indistinguishable from a Premium problem. A boolean set deliberately by the adapter that detected the paywall is unambiguous at every downstream point.
+
+**Alternatives.** Infer it from null fields (rejected: recreates the ambiguity); encode it as a `warnings[]` string (rejected: warnings are prose for humans, and matching on their text is brittle); a wider `status` enum (deferred: there is one named condition today, and a boolean that later becomes an enum is a smaller mistake than an enum with one meaningful member).
+
+**Consequences.** Every adapter must set the field, defaulting to `false`. The prompt builder branches on it in phase 4, and the popup in phase 3.
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §5, §6.6, [D027](#d027)
 
 ---
 

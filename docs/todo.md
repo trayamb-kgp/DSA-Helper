@@ -2,7 +2,7 @@
 
 Pending items. Tick the box when done; add a note underneath if the outcome is worth recording.
 
-**Last updated:** 2026-09-02
+**Last updated:** 2026-09-03
 
 ---
 
@@ -81,7 +81,7 @@ Capture early — they're the only thing that detects a site redesign before use
 ## 8. Build milestones
 
 - [ ] **M0** Scaffold — Vite + CRXJS + TS + React, manifest, icons, loads unpacked
-- [ ] **M1** Core — types, storage, template renderer, `html2md`
+- [x] **M1** Core — types, storage, template renderer, `html2md`
 - [ ] **M2** LeetCode adapter — metadata + all four code-capture layers
 - [ ] **M3** YouTube action — all three trigger surfaces
 - [ ] **M4** Prompt builder + copy-to-clipboard
@@ -92,7 +92,7 @@ Capture early — they're the only thing that detects a site redesign before use
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _—_
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M0 stays unticked until the four Chrome checks in item 11 are run._
 
 ---
 
