@@ -197,8 +197,12 @@ type ActionId = 'youtube' | 'chatgpt' | 'copyPrompt';
    │       └─ inject.ts        # composer detection + prompt insertion
    ├─ core/
    │   ├─ types.ts             # ProblemContext, Settings, HistoryEntry
+   │   ├─ urls.ts              # problem-URL matching + the manifest's match patterns
    │   ├─ templates.ts         # render(), DEFAULT_YOUTUBE_TEMPLATE, DEFAULT_PROMPT
+   │   ├─ youtube.ts           # query building + the §7.1 degradation ladder
    │   ├─ html2md.ts           # HTML → markdown
+   │   ├─ truncate.ts          # prompt truncation order (D022)
+   │   ├─ migrations.ts        # stored-schema migration chain (D019)
    │   ├─ storage.ts           # typed chrome.storage wrappers
    │   └─ history.ts
    ├─ popup/                   # React
@@ -277,13 +281,11 @@ Consequences:
 
 ### 6.1 Lifecycle
 
-The platform content script runs at `document_idle`. It does **not** extract eagerly on every page load — extraction is on demand (`EXTRACT_CONTEXT`), so idle tabs cost nothing. It does maintain a lightweight "is this a supported problem page?" flag, recomputed on:
+The platform content script runs at `document_idle`. It does **not** extract eagerly on every page load — extraction is on demand (`EXTRACT_CONTEXT`), so idle tabs cost nothing. It registers a message listener and nothing else: **no flag, no observer, no history patching** (D039).
 
-- initial load,
-- `popstate` / patched `pushState` / `replaceState`,
-- a debounced `MutationObserver` on `document.title`.
+"Is this a supported problem page?" is answered instead in the service worker, by a pure URL match (`platformForUrl`) run on `chrome.tabs.onUpdated` and `chrome.tabs.onActivated`. Chrome reports SPA navigation as an ordinary `onUpdated` with a new `url`, so this covers `pushState` routing without touching the page — which a content script could not do anyway, since its patched `history` lives in the isolated world and never sees the page's own calls.
 
-That flag drives the toolbar badge and whether the popup shows actions or an "unsupported page" state.
+That answer drives the toolbar badge and whether the popup shows actions or an "unsupported page" state.
 
 On `EXTRACT_CONTEXT`, if the expected DOM anchors are not yet present, retry with backoff (100 / 300 / 700 / 1500 ms) before giving up.
 

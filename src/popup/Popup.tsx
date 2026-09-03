@@ -1,33 +1,56 @@
 import { useEffect, useState } from 'react';
-import type { Msg, ProblemContext } from '../core/types';
+import type { ActionId, Msg, ProblemContext, Settings } from '../core/types';
+import { getSettings } from '../core/storage';
+import { buildQuery, varsFromContext } from '../core/youtube';
 
 /**
- * Phase 2 verification readout.
+ * The popup, as far as phase 3 takes it.
  *
- * The phase-2 exit criteria are stated in terms of what the popup shows for a
- * practice, a contest and a Premium problem, so this renders exactly those
- * fields and nothing else. Phase 3 replaces it with the resolved-query preview
- * and the action buttons; phase 7 builds the popup proper.
+ * Two jobs: the extraction readout that makes phase 2 checkable by eye, and
+ * the read-only YouTube query preview with the button beside it -- the user
+ * sees what will be searched before committing to it, and edits the template
+ * in settings rather than the query here (D006).
+ *
+ * Phase 7 builds the popup proper: history, the pause toggle, the other two
+ * action buttons.
  */
 
 type State =
   | { kind: 'loading' }
   | { kind: 'unsupported' }
-  | { kind: 'ready'; context: ProblemContext };
+  | { kind: 'ready'; context: ProblemContext; settings: Settings; tabId: number };
 
-async function requestContext(): Promise<State> {
+async function load(): Promise<State> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab?.id == null) return { kind: 'unsupported' };
 
   const request: Msg = { type: 'EXTRACT_CONTEXT' };
   // No content script on the page means no listener, which rejects. That is
   // an unsupported page, not an error worth showing.
-  const reply = await chrome.tabs.sendMessage(tab.id, request).catch(() => null);
+  const [reply, settings] = await Promise.all([
+    chrome.tabs.sendMessage(tab.id, request).catch(() => null),
+    getSettings(),
+  ]);
 
   if (reply && typeof reply === 'object' && (reply as Msg).type === 'CONTEXT_RESULT') {
-    return { kind: 'ready', context: (reply as Extract<Msg, { type: 'CONTEXT_RESULT' }>).context };
+    return {
+      kind: 'ready',
+      context: (reply as Extract<Msg, { type: 'CONTEXT_RESULT' }>).context,
+      settings,
+      tabId: tab.id,
+    };
   }
   return { kind: 'unsupported' };
+}
+
+/**
+ * Dispatch through the service worker rather than acting here, so the popup
+ * button takes exactly the path the shortcut and the menu take (D013).
+ */
+function run(action: ActionId, tabId: number): void {
+  const message: Msg = { type: 'RUN_ACTION', action, tabId };
+  void chrome.runtime.sendMessage(message).catch(() => undefined);
+  window.close();
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -57,7 +80,7 @@ export function Popup() {
 
   useEffect(() => {
     let live = true;
-    void requestContext().then((next) => {
+    void load().then((next) => {
       if (live) setState(next);
     });
     return () => {
@@ -86,7 +109,14 @@ export function Popup() {
     );
   }
 
-  const { context } = state;
+  const { context, settings, tabId } = state;
+  // The same function the action uses, so the preview cannot promise
+  // something the button does not do (D006).
+  const preview = buildQuery(
+    settings.youtubeTemplate,
+    varsFromContext(context),
+    context.url,
+  ).query;
 
   return (
     <main className="popup">
@@ -117,6 +147,14 @@ export function Popup() {
       {context.isLocked && (
         <p className="locked">Premium problem — statement not available to you</p>
       )}
+
+      <p className="preview-label">YouTube search</p>
+      <p className="preview" title={preview}>
+        {preview}
+      </p>
+      <button type="button" className="primary" onClick={() => run('youtube', tabId)}>
+        Search YouTube
+      </button>
 
       {context.warnings.length > 0 && (
         <ul className="warnings">

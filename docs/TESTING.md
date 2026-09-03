@@ -98,6 +98,34 @@ Manual, on a real logged-in account. Open the popup on each and read the fields:
 
 ---
 
+## 3b. Phase 3 acceptance — YouTube action
+
+Automated:
+
+- [x] All three surfaces map onto the same three action ids, and every action is reachable from both the command list and the menu
+- [x] The default template renders `LeetCode 912 Sort an Array solution`, and the search URL matches spec.md §7.1 exactly
+- [x] `openInNewTab` and `focusNewTab` both honoured; a new tab opens beside the problem, not at the end of the strip
+- [x] The full ladder — context → page title → URL slug → the raw URL — with the query **never** empty for any template input ([D016](decisions.md#d016))
+- [x] Unsupported page toasts; an injection-refusing page falls back to the badge; the two unbuilt actions say so rather than doing nothing
+- [x] Debounce holds at 750 ms, per tab *and* per action, and is forgotten when the tab closes ([D017](decisions.md#d017))
+- [x] The toast survives the `executeScript` round-trip, renders into a closed shadow root, and uses `textContent` — an `<img onerror>` in a problem title stays text
+- [x] Service-worker chunk 4.9 KB, no `html2md`, no React
+
+Manual, in a real Chrome:
+
+- [ ] **All three surfaces agree** — on one LeetCode problem, fire `Alt+Shift+Y`, the popup's **Search YouTube** button, and the right-click menu item. All three must open the same search ([D013](decisions.md#d013))
+- [ ] **The preview matches** — the string shown in the popup is exactly what YouTube receives ([D006](decisions.md#d006))
+- [ ] **Shortcut collisions** — `Alt+Shift+Y` and `Alt+Shift+G` do nothing unwanted inside LeetCode's editor. **Settle this before the defaults ship**
+- [ ] **Badge follows SPA navigation** — click from one problem to another without a reload; the badge stays on. Navigate to `leetcode.com/problemset/`; it goes off
+- [ ] **New-tab behaviour** — with `openInNewTab` off, the search replaces the current tab; with `focusNewTab` off, it opens in the background
+- [ ] **Unsupported page** — fire the shortcut on `example.com`: a toast, not silence
+- [ ] **Un-injectable page** — fire it on `chrome://extensions`: the toolbar badge shows `!` (no toast is possible there)
+- [ ] **Held shortcut** — hold `Alt+Shift+Y` down; exactly one tab opens
+- [ ] **Degraded search** — disable the content script (or fire immediately on a cold load) and confirm the search still opens *and* a toast explains it used the page title
+- [ ] **Context menu scope** — the DSA Helper menu appears on a LeetCode problem and is absent on an unrelated site
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.

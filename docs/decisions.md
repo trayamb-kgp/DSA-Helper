@@ -72,6 +72,7 @@
 | [D036](#d036) | Inaccessibility is a field on `ProblemContext` | Accepted | 2026-09-03 |
 | [D037](#d037) | Adapters are handed the page, they never reach for it | Accepted | 2026-09-03 |
 | [D038](#d038) | Stored buffers are chosen by open language, not recency | Accepted | 2026-09-03 |
+| [D039](#d039) | Page detection lives in the service worker, not the page | Accepted | 2026-09-03 |
 
 ---
 
@@ -584,6 +585,21 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** A solver who has just switched language, before the site has written the new global key, may get the previous buffer. The warning says the choice was a guess, so the capture is visible before it is sent.
 
 **Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §6.4, [D025](#d025)
+
+<a id="d039"></a>
+### D039 — Page detection lives in the service worker, not the page
+
+**Decision.** "Is this a supported problem page?" is answered in the service worker by a pure URL match on `chrome.tabs.onUpdated` / `onActivated`. The content script keeps no supported-page flag, patches no history methods and runs no observer. [spec.md](spec.md) §6.1 is amended accordingly.
+
+**Context.** §6.1 specified page-side detection recomputed on `popstate`, patched `pushState`/`replaceState`, and a debounced observer on `document.title`.
+
+**Reasoning.** The `pushState` half of that cannot work. A content script runs in an isolated world with its own `window`, so a patched `history.pushState` there never sees the page's own calls — only a MAIN-world script would, and the MAIN-world script is read-only by [D020](#d020), which patching a page method plainly is not. Meanwhile the service worker gets SPA navigation for free: Chrome fires `tabs.onUpdated` with the new `url` on a history state change, no `webNavigation` permission needed. So the worker's version is both the only one that fully works and the cheaper one — it removes an observer from every problem page, and the page-load budget in [architecture.md](architecture.md) §7 is one of the tighter constraints in the project. Zero observers beats a well-scoped one.
+
+**Consequences.** `platformForUrl` had to move somewhere the worker can import without dragging an adapter — and therefore `html2md` — into a code path with a 20 ms wake budget; hence `core/urls.ts`, which `manifest.config.ts` now also reads its match patterns from, so the three lists cannot drift. Detection is URL-only, so a page that is a problem page at a URL we do not recognise is invisible to the badge; that is the same blindness `matches()` already has, not a new one.
+
+**Alternatives.** Keep the observer for the title and drop only the history patching (rejected: the observer then earns its cost on nothing the worker doesn't already know); request `webNavigation` (rejected: a new permission on the install dialog for something `tabs` already provides, against [D021](#d021)'s posture); patch history from the MAIN world (rejected: contradicts D020 outright).
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §6.1, [architecture.md](architecture.md) §7, [D020](#d020)
 
 ---
 

@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–2 complete (manual Chrome checks from phases 0 and 2 outstanding). Phase 3 is next.
+**Status:** phases 0–3 complete (manual Chrome checks from phases 0, 2 and 3 outstanding). Phase 4 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -245,35 +245,67 @@ Verified automatically — `npm run typecheck`, `npm test` (225 tests, 101 new) 
 
 ### Tasks
 
-- [ ] `background/actions.ts` — single `runAction(actionId, tab)` path for every surface ([D013](../decisions.md))
-- [ ] Debounce per `(tabId, actionId)` at 750 ms ([D017](../decisions.md))
-- [ ] `commands.ts` — keyboard shortcuts
-- [ ] `contextMenus.ts` — parent + three children, `documentUrlPatterns` limited to the four platforms
-- [ ] Content script: supported-page detection, SPA re-detection via history-API patching plus a **`<title>`-scoped** observer — never a `body` subtree observer ([architecture.md](../architecture.md) §7)
-- [ ] Toolbar badge driven by that detection
-- [ ] `toast.ts` — shadow DOM, `textContent` only, 4 s auto-dismiss
-- [ ] YouTube URL construction with correct encoding
-- [ ] `openInNewTab` / `focusNewTab` honoured
-- [ ] Degradation ladder: full context → title + number → `document.title` → URL slug ([D016](../decisions.md))
-- [ ] Popup: read-only resolved-query preview ([D006](../decisions.md))
-- [ ] Unsupported-page toast
+- [x] `background/actions.ts` — single `runAction(actionId, tab)` path for every surface ([D013](../decisions.md))
+- [x] Debounce per `(tabId, actionId)` at 750 ms ([D017](../decisions.md))
+- [x] `commands.ts` — keyboard shortcuts
+- [x] `contextMenus.ts` — parent + three children, `documentUrlPatterns` limited to the four platforms
+- [x] Content script: supported-page detection, SPA re-detection via history-API patching plus a **`<title>`-scoped** observer — never a `body` subtree observer ([architecture.md](../architecture.md) §7)
+- [x] Toolbar badge driven by that detection
+- [x] `toast.ts` — shadow DOM, `textContent` only, 4 s auto-dismiss
+- [x] YouTube URL construction with correct encoding
+- [x] `openInNewTab` / `focusNewTab` honoured
+- [x] Degradation ladder: full context → title + number → `document.title` → URL slug ([D016](../decisions.md))
+- [x] Popup: read-only resolved-query preview ([D006](../decisions.md))
+- [x] Unsupported-page toast
 
 ### Decisions
 
-_None yet._
+One went into [decisions.md](../decisions.md):
+
+- **[D039](../decisions.md#d039) — page detection lives in the service worker, not the page.** The planned approach (patched `pushState`/`replaceState` plus a `<title>`-scoped observer) has a half that cannot work: a content script's patched `history` lives in the isolated world and never sees the page's own calls, and patching from the MAIN world would contradict [D020](../decisions.md#d020). Chrome reports SPA navigation as an ordinary `tabs.onUpdated` with a new `url`, so the worker gets it for free — and the page keeps *zero* observers, which is strictly better against the load-time budget than the well-scoped one the plan asked for. Amends [spec.md](../spec.md) §6.1.
+
+Smaller calls, recorded here only:
+
+- **`core/urls.ts` is new**, and `manifest.config.ts` now imports its match patterns from it. D039 put a URL match on the service worker's wake path, and the only place one existed was inside the LeetCode adapter — importing which would have pulled `html2md` into a code path with a 20 ms budget. The SW chunk is 4.9 KB and contains no `html2md`; verified in the built output.
+- **`core/youtube.ts` is new**, holding query building and the §7.1 ladder. The popup's read-only preview and the worker's action call the *same* function, so the preview cannot promise something the button does not do ([D006](../decisions.md#d006)).
+- **The toast is injected, not messaged.** An unsupported page is exactly where the user most needs to be told something, and it is the one place no content script is running. `chrome.scripting.executeScript({ func })` covers it, and `activeTab` is granted by all three surfaces. The catch: `func` is serialised with `toString()`, so `toastInPage` must reference nothing outside its own body or it becomes a silent ReferenceError in the page. `toast.test.ts` rebuilds it from its own source to make that failure loud.
+- **A missing `platformForUrl` is the only silent path**, and only when there is no tab to speak to. Every other branch opens a tab or says something ([D016](../decisions.md#d016)). The badge is the last rung when even injection is refused, as on `chrome://` pages.
+- **A degraded search says so.** When the query came off the page title rather than a real extraction, a warn toast follows the tab — otherwise a vague result looks like YouTube's fault rather than ours.
+- **`splitPageTitle` treats a title that is only the site name as a gap.** These SPAs show `LeetCode` before the route resolves; reporting that as a title would search YouTube for the word "LeetCode". Found by a test, not by reading.
+- **The debounce map is module state, deliberately.** The worker forbids that for *durable* state; this is the opposite. The window is 750 ms and MV3 only kills an idle worker after ~30 s, so a restart can never drop a debounce that was still doing anything. Entries are swept past 10× the window, and `tabs.onRemoved` forgets a closed tab.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user. D039 contradicts a task as written in this plan, and was resolved in the direction the constraint allows rather than raised, since the plan's version is not implementable.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification, which needs a real Chrome.
+
+Verified automatically — `npm run typecheck`, `npm test` (301 tests, 76 new) and `npm run build` all clean:
+
+- All three surfaces map onto the same three action ids, and every action is reachable from both the command list and the menu
+- The default template renders the documented example, `LeetCode 912 Sort an Array solution`, and the search URL matches spec §7.1 exactly
+- `openInNewTab` / `focusNewTab` both honoured; a new tab opens *beside* the problem rather than at the end of the strip
+- The full ladder: context → page title → URL slug → the raw URL, with a test asserting the query is **never** empty for any template input
+- Unsupported page toasts; an injection-refusing page falls back to the badge; the two unbuilt actions say so rather than doing nothing
+- Debounce holds at 750 ms, per tab *and* per action, and is forgotten when the tab closes
+- The toast survives being rebuilt from its own source (the `executeScript` round-trip), renders into a closed shadow root, and uses `textContent` — an `<img onerror>` in a problem title stays text
+- Service-worker chunk 4.9 KB with no `html2md` and no React; SPA navigation reaches the badge via `tabs.onUpdated`
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3b:**
+
+1. Fire all three surfaces on a real LeetCode problem and confirm they open the same search
+2. Confirm `Alt+Shift+Y` and `Alt+Shift+G` don't collide with LeetCode's own editor shortcuts — **before the defaults are locked in for release**
+3. Confirm the badge follows SPA navigation between problems without a reload
+4. Fire a shortcut on an unsupported page and on a `chrome://` page, and check something is said in each case
 
 ### Additional Notes
 
-- This phase proves the message contract end to end. If the service worker is being killed mid-action, it will surface here first — check that no state is held in module scope.
-- Confirm `Alt+Shift+Y/G` don't collide with LeetCode's own editor shortcuts on a real page before locking the defaults in.
+- This phase proves the message contract end to end. If the service worker is being killed mid-action, it will surface here first — check that no state is held in module scope. The one exception is the debounce map, above, and it is safe by construction.
+- The `GET_CONTEXT_FOR_POPUP` message in [spec.md](../spec.md) §4.1 is still unused: the popup asks the tab directly and renders the preview itself, which is presentation rather than orchestration and so does not cut across [D013](../decisions.md#d013). Phase 7 should decide whether that message earns its place or should be dropped from the contract.
+- The context menu registers all three children now, per the plan. Two of them currently answer with "arrives in a later phase" — deliberate, and removed as phases 4 and 5 land.
+- `chrome.contextMenus.removeAll` runs before every registration because `onInstalled` fires on update as well as install, and creating a duplicate id would leave the remaining items unregistered.
 
 ---
 

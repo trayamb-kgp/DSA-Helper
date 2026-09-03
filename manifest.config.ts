@@ -1,21 +1,13 @@
 import { defineManifest } from '@crxjs/vite-plugin';
+import { PROBLEM_PAGE_PATTERNS } from './src/core/urls';
 
 /**
- * Problem pages we attach to. Deliberately narrow: see docs/spec.md section 3.
- * CodeChef contest problems live under an arbitrary first segment
- * (/<CONTEST>/problems/<CODE>), hence the two patterns.
+ * Problem pages we attach to (spec.md section 3). Read from core/urls.ts so
+ * the content-script match list, the context-menu documentUrlPatterns and the
+ * service worker's own URL matching cannot drift apart.
  */
-const PROBLEM_PAGES = [
-  'https://leetcode.com/problems/*',
-  'https://leetcode.com/contest/*',
-  'https://codeforces.com/problemset/*',
-  'https://codeforces.com/contest/*',
-  'https://codeforces.com/gym/*',
-  'https://www.codechef.com/problems/*',
-  'https://www.codechef.com/*/problems/*',
-  'https://www.geeksforgeeks.org/problems/*',
-  'https://practice.geeksforgeeks.org/problems/*',
-];
+const PROBLEM_PAGES = [...PROBLEM_PAGE_PATTERNS];
+
 
 export default defineManifest({
   manifest_version: 3,

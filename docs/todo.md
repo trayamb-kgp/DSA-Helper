@@ -83,7 +83,7 @@ Capture early — they're the only thing that detects a site redesign before use
 - [ ] **M0** Scaffold — Vite + CRXJS + TS + React, manifest, icons, loads unpacked
 - [x] **M1** Core — types, storage, template renderer, `html2md`
 - [x] **M2** LeetCode adapter — metadata + all four code-capture layers
-- [ ] **M3** YouTube action — all three trigger surfaces
+- [x] **M3** YouTube action — all three trigger surfaces
 - [ ] **M4** Prompt builder + copy-to-clipboard
 - [ ] **M5** ChatGPT injection — banner + clipboard fallback
 - [ ] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
@@ -92,7 +92,7 @@ Capture early — they're the only thing that detects a site redesign before use
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 
@@ -119,17 +119,23 @@ Each names its own trigger in [decisions.md](decisions.md). None needs action be
 
 ---
 
-## 11. Verify the scaffold in Chrome
+## 11. Verify in Chrome
 
-Phase 0 is automated-green but these need a real browser:
+Everything below is automated-green but needs a real browser to confirm.
+
+**Phase 0 — the scaffold:**
 
 - [ ] `dist/` loads unpacked with no errors on the extension card
 - [ ] Toolbar icon opens the popup on a LeetCode problem page
 - [ ] Options page opens from the extension card
 - [ ] `chrome://extensions/shortcuts` lists all three commands, `Alt+Shift+Y` and `Alt+Shift+G` bound
-- [ ] Confirm the two default shortcuts don't collide with LeetCode's own editor hotkeys
+- [ ] Confirm the two default shortcuts don't collide with LeetCode's own editor hotkeys — **do this before the defaults are locked in for release**
 
-Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3.
+**Phase 2 — extraction** ([TESTING.md](TESTING.md) §3a): walk the popup readout over a practice, a contest and a Premium problem; check code provenance and language; note the live `localStorage` key shape (item 6) and whether the fixtures still match (item 5).
+
+**Phase 3 — the YouTube action** ([TESTING.md](TESTING.md) §3b): all three surfaces open the same search; the badge follows SPA navigation between problems without a reload; an unsupported page and a `chrome://` page each say something rather than nothing.
+
+Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a, §3b.
 
 **Notes:** _—_
 

@@ -10,6 +10,7 @@
  */
 
 import { html2md } from '../../core/html2md';
+import { parseLeetCodePath } from '../../core/urls';
 import {
   field,
   optionalField,
@@ -105,40 +106,12 @@ export function languageLabel(raw: string | null | undefined): string | null {
   return LANGUAGE_LABELS[token] ?? raw.trim();
 }
 
-const PRACTICE_PATH = /^\/problems\/([^/]+)(?:\/.*)?$/;
-const CONTEST_PATH = /^\/contest\/([^/]+)\/problems\/([^/]+)(?:\/.*)?$/;
-
-/** leetcode.cn is explicitly out of scope for v1 (spec.md section 3). */
-function isLeetCodeHost(url: URL): boolean {
-  return url.hostname === 'leetcode.com' || url.hostname === 'www.leetcode.com';
-}
-
-interface PathParts {
-  slug: string;
-  contest: string | null;
-}
-
 /**
- * Tolerant of every suffix LeetCode hangs off a problem: /description/,
- * /submissions/, /solutions/1234/title/, ?envType=..., #anchor (D024).
+ * Re-exported so the adapter and its tests keep one name for this, while the
+ * regexes themselves live in core/urls.ts -- the service worker needs them
+ * too, and must not import an adapter to get them.
  */
-export function parsePath(url: URL): PathParts | null {
-  if (!isLeetCodeHost(url)) return null;
-
-  const contest = CONTEST_PATH.exec(url.pathname);
-  if (contest) {
-    const [, contestSlug, slug] = contest;
-    if (contestSlug && slug) return { slug, contest: contestSlug };
-    return null;
-  }
-
-  const practice = PRACTICE_PATH.exec(url.pathname);
-  if (practice) {
-    const [, slug] = practice;
-    if (slug) return { slug, contest: null };
-  }
-  return null;
-}
+export const parsePath = parseLeetCodePath;
 
 // ---------------------------------------------------------------------------
 // Embedded question JSON

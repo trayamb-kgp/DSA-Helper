@@ -10,6 +10,8 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 ### Added
 
+- **Search YouTube** (2026-09-03) — the first working action. From a LeetCode problem, `Alt+Shift+Y`, the popup button and the right-click menu all open a YouTube search built from your own template; the popup shows the exact search string first, so nothing happens that you did not see coming. The search still works when the problem can't be read — it falls back to the page title and then to the URL — and firing it somewhere unsupported tells you so instead of doing nothing. The toolbar icon marks pages the extension recognises.
+
 - **LeetCode extraction** (2026-09-03) — the extension can now read a LeetCode problem page: title, number, difficulty, tags, and the statement split into problem, examples and constraints, plus your in-progress code from whichever of four sources has it — the site's own saved buffer, the editor's model, the visible lines on the page, or your current text selection. Where the code came from is recorded and shown, so you can judge a capture before sending it. Practice and contest problems both work, and a Premium problem reports itself as locked rather than as a failure. The popup shows what was read; the actions arrive in the next phase.
 
 - **Core library** (2026-09-03) — the pure functions the features are built from: the shared type vocabulary, settings storage with a sync-quota guard and write batching, schema migrations, template rendering, HTML-to-markdown conversion, prompt truncation and history semantics. Covered by 124 unit tests. Still not wired to anything the user can see.
