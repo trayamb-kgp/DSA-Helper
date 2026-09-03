@@ -157,18 +157,24 @@ export function buildPrompt(context: ProblemContext, settings: Settings): Prompt
 }
 
 /**
- * One line telling the user what they just got, for the confirmation toast.
+ * What is worth telling the user about this prompt, if anything.
  *
- * Silence here would be the wrong default: a prompt missing the user's code is
- * still worth copying, but only if they know to paste it themselves.
+ * Silence would be the wrong default: a prompt missing the user's code is
+ * still worth having, but only if they know to paste it themselves. Empty
+ * means there is nothing to say, which is the common case.
  */
-export function describeResult(result: PromptResult): string {
+export function promptGaps(result: PromptResult): string[] {
   const notes: string[] = [];
   if (!result.hasCode) notes.push('no code was captured — paste yours in');
   if (result.isLocked) notes.push('the statement is Premium-locked');
   if (result.truncated.length > 0) notes.push(`the ${result.truncated.join(' and ')} was shortened`);
   if (result.overBudget) notes.push('it is over your size cap, since your code is never cut');
+  return notes;
+}
 
+/** One line for the clipboard action's confirmation toast. */
+export function describeResult(result: PromptResult): string {
+  const notes = promptGaps(result);
   return notes.length === 0
     ? 'Prompt copied to the clipboard.'
     : `Prompt copied — ${notes.join('; ')}.`;

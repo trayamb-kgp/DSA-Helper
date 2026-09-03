@@ -246,7 +246,7 @@ interface Settings {
   youtubeTemplate: string;
   promptTemplate: string;
   maxPromptChars: number;       // default 12000
-  openInNewTab: boolean;        // default true
+  openInNewTab: boolean;        // default true; YouTube result only (D042)
   focusNewTab: boolean;         // default true
   includeCode: boolean;         // default true
   autoInjectChatGpt: boolean;   // default true; false => clipboard-only flow

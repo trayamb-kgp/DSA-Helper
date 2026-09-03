@@ -182,6 +182,9 @@ export function Popup() {
       <button type="button" className="primary" onClick={() => run('youtube', tabId)}>
         Search YouTube
       </button>
+      <button type="button" className="secondary" onClick={() => run('chatgpt', tabId)}>
+        Ask ChatGPT
+      </button>
       <button
         type="button"
         className="secondary"

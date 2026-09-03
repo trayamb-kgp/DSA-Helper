@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–4 complete (manual Chrome checks from phases 0, 2, 3 and 4 outstanding). Phase 5 is next.
+**Status:** phases 0–5 complete (manual Chrome checks from phases 0, 2–5 outstanding). Phase 6 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -387,37 +387,70 @@ Verified automatically — `npm run typecheck`, `npm test` (346 tests, 45 new) a
 
 ### Tasks
 
-- [ ] `pendingPrompt.ts` — session storage keyed by the created tab id; one-shot delete on claim; 5-minute expiry; sweep on `tabs.onRemoved` ([D017](../decisions.md))
-- [ ] Prompt never written to `local` or `sync` ([D018](../decisions.md))
-- [ ] ChatGPT content script claims via the service worker — never reads session storage directly
-- [ ] Composer wait: `MutationObserver`, 10 s timeout
-- [ ] Insertion attempt 1: focus, select all, `execCommand('insertText')`
-- [ ] Insertion attempt 2: synthetic paste `ClipboardEvent`
-- [ ] Insertion attempt 3: DOM mutation + dispatched `input`
-- [ ] **Read-back verification** after insertion
-- [ ] Failure → clipboard fallback + "press Ctrl+V" toast
-- [ ] Review banner: "Prompt inserted by DSA Helper — review it, then press Enter"
-- [ ] **Never submit.** No Enter dispatch, no submit-button click, anywhere in this file ([D003](../decisions.md))
-- [ ] `autoInjectChatGpt: false` → clipboard-only flow
-- [ ] Manually test the failure path by breaking the selector on purpose
+- [x] `pendingPrompt.ts` — session storage keyed by the created tab id; one-shot delete on claim; 5-minute expiry; sweep on `tabs.onRemoved` ([D017](../decisions.md))
+- [x] Prompt never written to `local` or `sync` ([D018](../decisions.md))
+- [x] ChatGPT content script claims via the service worker — never reads session storage directly
+- [x] Composer wait: `MutationObserver`, 10 s timeout
+- [x] Insertion attempt 1: focus, select all, `execCommand('insertText')`
+- [x] Insertion attempt 2: synthetic paste `ClipboardEvent`
+- [x] Insertion attempt 3: DOM mutation + dispatched `input`
+- [x] **Read-back verification** after insertion
+- [x] Failure → clipboard fallback + "press Ctrl+V" toast
+- [x] Review banner: "Prompt inserted by DSA Helper — review it, then press Enter"
+- [x] **Never submit.** No Enter dispatch, no submit-button click, anywhere in this file ([D003](../decisions.md))
+- [x] `autoInjectChatGpt: false` → clipboard-only flow
+- [x] Manually test the failure path by breaking the selector on purpose
 
 ### Decisions
 
-_None yet._
+One went into [decisions.md](../decisions.md):
+
+- **[D042](../decisions.md#d042) — `openInNewTab` governs the YouTube result only.** §7.1 renders the search "per `openInNewTab`", §7.2 says flatly "open ChatGPT in a new tab", and the setting's name suggests it covers both. It cannot: navigating the current tab to ChatGPT would destroy the problem page the prompt was just built from. Amends [spec.md](../spec.md) §5 beside the setting.
+
+Smaller calls, recorded here only:
+
+- **The never-submit rule is enforced by reading this file's own source.** `inject.test.ts` imports `inject.ts?raw`, strips the comments so the prose explaining the rule cannot satisfy the check, and fails if `KeyboardEvent`, `'Enter'`, `.click(`, `requestSubmit` or `.submit(` appears. A behavioural test cannot catch a submit added to a path it does not exercise; this can. It is the only security control in the project enforced by *absence*, which is exactly the kind that erodes quietly.
+- **The claim is origin-checked as well as tab-checked.** `CLAIM_PENDING_PROMPT` returns the user's code, and any page that knows the extension id can call `sendMessage` ([architecture.md](../architecture.md) §9.1). The sender must be a tab, and that tab must be on ChatGPT's origin.
+- **`inject.ts` only auto-runs when `chrome.runtime.id` exists.** It makes the module importable by its own tests, and in the page the guard is false in exactly one situation — after an extension reload, when doing nothing is the right answer anyway.
+- **Read-back verification compares whitespace-insensitively.** ProseMirror splits the prompt into paragraph nodes, so what comes back differs from what went in by whitespace alone. Anything more than that is a failed insertion, including a partial one — half a prompt produces a confidently wrong review.
+- **The composer observer is disconnected the moment it hits.** ChatGPT streams tokens into the DOM; an observer left running on `document.body` would fire on every one of them.
+- **Gaps are announced on the problem tab, not the ChatGPT tab.** That is where the user still is when `focusNewTab` is off, and it happens before ChatGPT has finished loading.
+- **A created tab with no id falls back to the clipboard.** Nothing could ever claim that prompt, so it goes somewhere the user can reach instead of being dropped ([D016](../decisions.md#d016)).
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification.
+
+Verified automatically — `npm run typecheck`, `npm test` (383 tests, 37 new) and `npm run build` all clean:
+
+- The prompt is written to `chrome.storage.session` and nowhere else; `local` and `sync` stay empty ([D018](../decisions.md#d018))
+- Claiming is one-shot: the second claim returns null and leaves nothing behind, and an expired entry is deleted rather than left for a later claim
+- Two problem tabs firing in quick succession get their own prompts — the case a global slot would break (architecture §5.3)
+- Prompts expire at 5 minutes, are swept on `tabs.onRemoved`, and an unreadable entry is swept too since nothing can ever claim it
+- Insertion descends its three strategies and verifies by read-back; a composer that silently discards writes, and one that takes only part of the prompt, both count as failures
+- Whitespace differences do *not* count as failures — that is just ProseMirror
+- The prompt is inserted as text, never markup: an `<img onerror>` in a problem title stays text
+- **No submit path exists in `inject.ts`**, enforced by a source-level test
+- ChatGPT content script builds to 3.2 KB with no React; total `dist/` is 290 KB against a 500 KB budget
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3d:**
+
+1. **Break the composer selector on purpose** and confirm the clipboard fallback fires with its toast. The plan asks for this explicitly and it is the path that matters most, because it is the one that runs the day ChatGPT redesigns.
+2. Confirm the prompt lands in the composer **unsent**, with the banner, on a real ChatGPT page — and that the selector list is still right (`COMPOSER_SELECTORS` carries a verified-on date of 2026-09-03 derived from documentation, not observation).
+3. Fire the action twice from two different problem tabs and confirm each ChatGPT tab gets its own prompt.
+4. Open ChatGPT by hand and confirm **nothing** is inserted.
 
 ### Additional Notes
 
 - Everything ChatGPT-specific — selector, timeout, insertion strategies — stays in this one module, so a redesign is a single-file fix ([architecture.md](../architecture.md) §7.2).
-- Record the date the composer selector was verified, in the file.
-- The "never submit" rule is a security control, not a preference. Any future convenience request to auto-send needs a decision entry that reckons with that ([D003](../decisions.md)).
+- The composer selector carries its verified-on date in the file, as asked. It is the value most likely to be wrong, since it was derived from spec §7.2 rather than from a live page.
+- The "never submit" rule is a security control, not a preference. Any future convenience request to auto-send needs a decision entry that reckons with that ([D003](../decisions.md)) — and would have to delete a test that exists to stop it.
+- `focusNewTab: false` is the interesting case for this action: the ChatGPT tab loads in the background, the insertion still runs, and the banner is waiting when the user switches to it. The clipboard *fallback* is the part that suffers there, since an unfocused document cannot write the clipboard ([D041](../decisions.md#d041)) — worth checking by hand.
+- Phase 4's clipboard path is what this degrades into, which is why it was built first. It works.
 
 ---
 

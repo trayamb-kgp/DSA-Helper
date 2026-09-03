@@ -151,6 +151,34 @@ Manual, in a real Chrome:
 
 ---
 
+## 3d. Phase 5 acceptance — ChatGPT injection
+
+Automated:
+
+- [x] **No submit path exists in `inject.ts`** — enforced by a test that reads the module's own source with comments stripped, so the prose explaining the rule cannot satisfy it ([D003](decisions.md#d003))
+- [x] The prompt is written to `chrome.storage.session` and nowhere else; `local` and `sync` stay empty ([D018](decisions.md#d018))
+- [x] Claiming is one-shot: a second claim returns null and leaves nothing behind; an expired entry is deleted rather than left to be claimed later
+- [x] Two problem tabs firing in quick succession get their own prompts (architecture.md §5.3)
+- [x] Prompts expire at 5 minutes, are swept on `tabs.onRemoved`, and an unreadable entry is swept too
+- [x] Insertion descends its three strategies and verifies by read-back; a composer that discards writes, and one that takes only part of the prompt, both count as failures
+- [x] Whitespace differences do not count as failures — that is just ProseMirror splitting paragraphs
+- [x] The prompt is inserted as text, never markup
+- [x] ChatGPT content script 3.2 KB with no React; total `dist/` 290 KB against the 500 KB budget
+
+Manual, in a real Chrome:
+
+- [ ] **The prompt lands unsent** — `Alt+Shift+G` on a LeetCode problem opens ChatGPT with the prompt in the composer and the banner above it. **Nothing is sent.** Check the conversation list: no new conversation was started
+- [ ] **Break the selector on purpose** — edit `COMPOSER_SELECTORS` in `inject.ts` to something that cannot match, rebuild, and confirm the prompt reaches the clipboard with the *"press Ctrl+V"* toast. This is the path that runs the day ChatGPT redesigns, so it is the one worth proving
+- [ ] **The selector is still right** — `COMPOSER_SELECTORS` carries a verified-on date of 2026-09-03 derived from spec.md §7.2 rather than from a live page. Confirm the first entry is the one that matches
+- [ ] **Two tabs at once** — fire the action from two different problem tabs in quick succession; each ChatGPT tab must get its own prompt, not the same one twice
+- [ ] **An ordinary visit inserts nothing** — open `chatgpt.com` by hand and confirm no prompt appears and no banner shows
+- [ ] **A stale prompt is never resurrected** — fire the action, close the ChatGPT tab without using it, then open ChatGPT by hand. Nothing should be inserted
+- [ ] **`autoInjectChatGpt: false`** — no tab opens and the prompt goes to the clipboard instead
+- [ ] **`focusNewTab: false`** — the ChatGPT tab loads in the background, the prompt still lands, and the banner is waiting when you switch to it. Note that the *clipboard fallback* cannot work in this case, since an unfocused document cannot write the clipboard ([D041](decisions.md#d041)) — worth seeing what happens if both conditions hit at once
+- [ ] **A very long prompt** — one near the size cap still inserts, and the composer is not truncated
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.

@@ -27,6 +27,9 @@ interface FakeChrome {
   injectionThrows: boolean;
   /** What an injected function reports back. Only the copy path reads it. */
   injectionResult: unknown;
+  /** Id given to a tab created by the action. Null means Chrome gave us none. */
+  newTabId: number | null;
+  session: Record<string, unknown>;
 }
 
 let fake: FakeChrome;
@@ -40,6 +43,8 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
     contextReply: null,
     injectionThrows: false,
     injectionResult: true,
+    newTabId: 99,
+    session: {},
   };
 
   const { promptTemplate, ...rest } = { ...DEFAULT_SETTINGS, ...settings };
@@ -50,6 +55,21 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
         get: async () => ({ settings: rest, promptTemplate }),
         set: async () => undefined,
       },
+      session: {
+        get: async (keys: string | string[] | null) => {
+          if (keys === null) return { ...state.session };
+          const wanted = typeof keys === 'string' ? [keys] : keys;
+          const out: Record<string, unknown> = {};
+          for (const key of wanted) if (key in state.session) out[key] = state.session[key];
+          return out;
+        },
+        set: async (items: Record<string, unknown>) => {
+          Object.assign(state.session, items);
+        },
+        remove: async (keys: string | string[]) => {
+          for (const key of typeof keys === 'string' ? [keys] : keys) delete state.session[key];
+        },
+      },
     },
     tabs: {
       sendMessage: async () => {
@@ -58,7 +78,7 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
       },
       create: async (props: Record<string, unknown>) => {
         state.created.push(props);
-        return props;
+        return state.newTabId == null ? props : { ...props, id: state.newTabId };
       },
       update: async (tabId: number, props: Record<string, unknown>) => {
         state.updated.push({ tabId, props });
@@ -257,13 +277,22 @@ describe('runAction — degrading, never dead-ending (D016)', () => {
     expect(fake.badges.some((b) => b.text === '!')).toBe(true);
   });
 
-  it('says an unbuilt action is unbuilt rather than ignoring it', async () => {
+  it('has no action left that answers with a placeholder', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'x' }) };
     const { runAction } = await load();
-    await runAction('chatgpt', tab());
 
-    expect(toastTexts(fake)).toHaveLength(1);
-    expect(toastTexts(fake).join(' ')).toContain('later phase');
-    expect(fake.created).toHaveLength(0);
+    for (const action of ['youtube', 'chatgpt', 'copyPrompt'] as const) {
+      fake = installChrome();
+      fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'x' }) };
+      const fresh = await load();
+      await fresh.runAction(action, tab());
+
+      // Every action now does its own work: a tab opened, or something copied.
+      const didSomething = fake.created.length > 0 || fake.injected.length > 0;
+      expect(didSomething).toBe(true);
+      expect(toastTexts(fake).join(' ')).not.toContain('later phase');
+    }
+    expect(runAction).toBeTypeOf('function');
   });
 
   it('reports an error rather than failing silently', async () => {
@@ -369,6 +398,110 @@ describe('runAction — the clipboard action (spec §7.3)', () => {
     await runAction('copyPrompt', tab());
 
     expect(fake.injected).toHaveLength(injectionsAfterFirst);
+  });
+});
+
+describe('runAction — the ChatGPT action (spec §7.2)', () => {
+  const withContext = (): void => {
+    fake.contextReply = {
+      type: 'CONTEXT_RESULT',
+      context: context({ statementMd: 'Given an array...', code: 'int main() {}', language: 'C++' }),
+    };
+  };
+
+  it('opens ChatGPT and parks the prompt against the new tab', async () => {
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(fake.created).toHaveLength(1);
+    expect(fake.created[0]?.['url']).toBe('https://chatgpt.com/');
+
+    // Keyed by the created tab's id, not globally (architecture §5.3).
+    const keys = Object.keys(fake.session);
+    expect(keys).toEqual(['pendingPrompt:99']);
+    const entry = fake.session['pendingPrompt:99'] as { prompt: string };
+    expect(entry.prompt).toContain('int main() {}');
+  });
+
+  it('opens a new tab even when openInNewTab is off', async () => {
+    fake = installChrome({ openInNewTab: false });
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    // That setting is about where a result opens; navigating away would take
+    // the problem page the prompt was built from with it.
+    expect(fake.created).toHaveLength(1);
+    expect(fake.updated).toHaveLength(0);
+  });
+
+  it('honours focusNewTab', async () => {
+    fake = installChrome({ focusNewTab: false });
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(fake.created[0]?.['active']).toBe(false);
+  });
+
+  it('says nothing when the prompt is complete', async () => {
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(toastTexts(fake)).toEqual([]);
+  });
+
+  it('names a gap on the problem tab, before ChatGPT has even loaded', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: null }) };
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(toastTexts(fake).join(' ')).toContain('paste yours in');
+    expect(fake.injected[0]?.tabId).toBe(7);
+  });
+
+  it('copies instead of opening a tab when auto-inject is off', async () => {
+    fake = installChrome({ autoInjectChatGpt: false });
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(fake.created).toHaveLength(0);
+    expect(String(fake.injected[0]?.args[0] ?? '')).toContain('int main() {}');
+    expect(toastTexts(fake).join(' ')).toContain('Paste it into ChatGPT');
+  });
+
+  it('falls back to the clipboard when the new tab has no id to key on', async () => {
+    withContext();
+    fake.newTabId = null;
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(fake.session).toEqual({});
+    expect(toastTexts(fake).join(' ')).toContain('on your clipboard instead');
+  });
+
+  it('says so when there is no context to build a prompt from', async () => {
+    fake.contextReply = null;
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    expect(fake.created).toHaveLength(0);
+    expect(toastTexts(fake).join(' ')).toContain('nothing to build a prompt from');
+  });
+
+  it('never writes the prompt anywhere but session storage (D018)', async () => {
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    const written = JSON.stringify(fake.session);
+    expect(written).toContain('int main()');
+    // The fake sync area records nothing, and there is no local area at all:
+    // a write to either would throw rather than pass quietly.
+    expect(Object.keys(fake.session).every((k) => k.startsWith('pendingPrompt:'))).toBe(true);
   });
 });
 

@@ -11,9 +11,10 @@ import type { ActionId, Msg, ProblemContext, Settings, ToastLevel } from '../cor
 import { getSettings } from '../core/storage';
 import { platformForUrl } from '../core/urls';
 import { buildQuery, searchUrl, varsFromContext, varsFromTab } from '../core/youtube';
-import { buildPrompt, describeResult } from '../core/prompt';
+import { buildPrompt, describeResult, promptGaps } from '../core/prompt';
 import { copyInPage } from '../content/platform/clipboard';
 import { toastInPage } from '../content/platform/toast';
+import { putPendingPrompt } from './pendingPrompt';
 
 /**
  * Per-(tab, action) debounce (D017).
@@ -51,12 +52,12 @@ export function forgetTab(tabId: number): void {
 const UNSUPPORTED =
   'DSA Helper works on LeetCode problem pages. Open one and try again.';
 
-const NOT_YET: Partial<Record<ActionId, string>> = {
-  chatgpt: 'Ask ChatGPT is not wired up yet — it arrives in a later phase.',
-};
+const NOT_YET: Partial<Record<ActionId, string>> = {};
 
 const NO_CONTEXT =
   "Couldn't read this problem, so there's nothing to build a prompt from.";
+
+export const CHATGPT_URL = 'https://chatgpt.com/';
 
 /**
  * Show a toast on any tab, including one with no content script.
@@ -162,14 +163,96 @@ async function runYouTube(tab: chrome.tabs.Tab, tabId: number, url: string): Pro
  * Shared by both copy routes so they cannot produce different prompts, which
  * is the whole point of the single dispatch path (D013).
  */
-async function preparePrompt(tabId: number): Promise<{ prompt: string; note: string } | null> {
+async function preparePrompt(
+  tabId: number,
+): Promise<{ prompt: string; note: string; gaps: string[]; settings: Settings } | null> {
   const [settings, context] = await Promise.all([getSettings(), requestContext(tabId)]);
   // Unlike the YouTube search, there is no useful prompt to build from a page
   // title alone: a review request with no statement and no code is noise.
   if (!context) return null;
 
   const result = buildPrompt(context, settings);
-  return { prompt: result.prompt, note: describeResult(result) };
+  return {
+    prompt: result.prompt,
+    note: describeResult(result),
+    gaps: promptGaps(result),
+    settings,
+  };
+}
+
+/** Write a prompt to the clipboard from a page. Returns whether it landed. */
+async function copyFromPage(tabId: number, prompt: string): Promise<boolean> {
+  try {
+    const [outcome] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: copyInPage,
+      args: [prompt],
+    });
+    return outcome?.result === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The ChatGPT action, spec.md section 7.2.
+ *
+ * The worker's whole job is: build the prompt, open the tab, park the prompt
+ * against that tab's id. The content script does the rest, and everything
+ * fragile about it lives over there (architecture.md section 5.3).
+ */
+async function runChatGpt(tab: chrome.tabs.Tab, tabId: number): Promise<void> {
+  const built = await preparePrompt(tabId);
+  if (!built) {
+    await showToast(tabId, 'warn', NO_CONTEXT);
+    return;
+  }
+
+  // Clipboard-only flow: the user has turned auto-inject off, so no tab opens
+  // and the prompt goes straight to the clipboard (spec.md section 5).
+  if (!built.settings.autoInjectChatGpt) {
+    const copied = await copyFromPage(tabId, built.prompt);
+    await showToast(
+      tabId,
+      copied ? 'info' : 'error',
+      copied
+        ? `${built.note} Paste it into ChatGPT.`
+        : "Couldn't reach the clipboard on this page.",
+    );
+    return;
+  }
+
+  // Always a new tab, whatever `openInNewTab` says: that setting is about
+  // where a *result* opens, and navigating away from the problem would take
+  // the page the prompt was built from with it.
+  const created = await chrome.tabs.create({
+    url: CHATGPT_URL,
+    active: built.settings.focusNewTab,
+    index: typeof tab.index === 'number' ? tab.index + 1 : undefined,
+    windowId: tab.windowId,
+  });
+
+  if (created.id == null) {
+    // No tab id means nothing can claim the prompt, so it goes to the
+    // clipboard instead of being silently dropped (D016).
+    const copied = await copyFromPage(tabId, built.prompt);
+    await showToast(
+      tabId,
+      'warn',
+      copied
+        ? "Couldn't track the new tab — the prompt is on your clipboard instead."
+        : "Couldn't open ChatGPT, and the clipboard is unavailable here.",
+    );
+    return;
+  }
+
+  await putPendingPrompt(created.id, built.prompt);
+
+  // Anything the prompt is missing is said on the problem tab, where the user
+  // still is when `focusNewTab` is off, and before ChatGPT has even loaded.
+  if (built.gaps.length > 0) {
+    await showToast(tabId, 'warn', `Sent to ChatGPT — ${built.gaps.join('; ')}.`);
+  }
 }
 
 /** The clipboard action, spec.md section 7.3. */
@@ -182,13 +265,7 @@ async function runCopyPrompt(tabId: number): Promise<void> {
 
   // The page is the focused document for the command and menu routes, so the
   // write happens there (D040). The popup route never reaches this function.
-  const [outcome] = await chrome.scripting.executeScript({
-    target: { tabId },
-    func: copyInPage,
-    args: [built.prompt],
-  });
-
-  if (outcome?.result === true) {
+  if (await copyFromPage(tabId, built.prompt)) {
     await showToast(tabId, 'info', built.note);
     return;
   }
@@ -246,15 +323,20 @@ export async function runAction(
       return null;
     }
 
+    if (action === 'chatgpt') {
+      await runChatGpt(tab, tabId);
+      return null;
+    }
+
     await runYouTube(tab, tabId, url);
     return null;
   } catch {
     await showToast(
       tabId,
       'error',
-      action === 'copyPrompt'
-        ? 'DSA Helper hit an error building the prompt.'
-        : 'DSA Helper hit an error opening the search.',
+      action === 'youtube'
+        ? 'DSA Helper hit an error opening the search.'
+        : 'DSA Helper hit an error building the prompt.',
     );
     return null;
   }

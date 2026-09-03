@@ -9,9 +9,10 @@
 import type { Msg } from '../core/types';
 import { PLATFORM_LABELS } from '../core/types';
 import { platformForUrl } from '../core/urls';
-import { forgetTab, runAction } from './actions';
+import { CHATGPT_URL, forgetTab, runAction } from './actions';
 import { handleCommand } from './commands';
 import { handleMenuClick, registerContextMenus } from './contextMenus';
+import { claimPendingPrompt, dropPendingPrompt, sweepExpired } from './pendingPrompt';
 
 const BADGE_COLOR = '#4f46e5';
 
@@ -81,6 +82,53 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   forgetTab(tabId);
+  // A prompt nobody claimed must not outlive the tab it was meant for: it
+  // holds the user's code (D017, D018).
+  void dropPendingPrompt(tabId);
+});
+
+function isClaim(value: unknown): value is Extract<Msg, { type: 'CLAIM_PENDING_PROMPT' }> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { type?: unknown }).type === 'CLAIM_PENDING_PROMPT'
+  );
+}
+
+/**
+ * Hand a prompt to the ChatGPT tab it was prepared for, once.
+ *
+ * The sender is checked twice over: it must be a tab, and that tab must be on
+ * ChatGPT's own origin. Any page that knows the extension id can call
+ * sendMessage (architecture.md section 9.1), and this message returns the
+ * user's code.
+ */
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!isClaim(message)) return false;
+
+  const tabId = sender.tab?.id;
+  const fromChatGpt = (sender.origin ?? sender.url ?? '').startsWith(CHATGPT_URL.slice(0, -1));
+
+  if (tabId == null || !fromChatGpt) {
+    const denied: Msg = { type: 'PENDING_PROMPT', prompt: null };
+    sendResponse(denied);
+    return false;
+  }
+
+  void claimPendingPrompt(tabId)
+    .then(async (prompt) => {
+      // Cheap, and the only place an abandoned tab's prompt gets collected if
+      // its tab was closed while the worker was asleep.
+      await sweepExpired().catch(() => 0);
+      const reply: Msg = { type: 'PENDING_PROMPT', prompt };
+      sendResponse(reply);
+    })
+    .catch(() => {
+      const reply: Msg = { type: 'PENDING_PROMPT', prompt: null };
+      sendResponse(reply);
+    });
+
+  return true; // the response is asynchronous
 });
 
 /**

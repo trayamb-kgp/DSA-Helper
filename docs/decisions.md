@@ -75,6 +75,7 @@
 | [D039](#d039) | Page detection lives in the service worker, not the page | Accepted | 2026-09-03 |
 | [D040](#d040) | Quoted problem text is tagged, not fenced | Accepted | 2026-09-03 |
 | [D041](#d041) | The clipboard write happens in whichever surface has focus | Accepted | 2026-09-03 |
+| [D042](#d042) | `openInNewTab` governs the YouTube result only | Accepted | 2026-09-03 |
 
 ---
 
@@ -632,6 +633,21 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** `runAction` takes a `returnPrompt` option and the `Msg` union gains `PROMPT_RESULT`. The single-dispatch-path property of [D013](#d013) is preserved in the part that matters — what the prompt contains — while delivery varies by surface, which it must.
 
 **Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §7.3, §4.1, [D013](#d013)
+
+<a id="d042"></a>
+### D042 — `openInNewTab` governs the YouTube result only
+
+**Decision.** The ChatGPT action always opens a new tab. `openInNewTab` applies to the YouTube search alone; `focusNewTab` applies to both. [spec.md](spec.md) §5 is amended to say so beside the setting.
+
+**Context.** §7.1 renders the YouTube search "per `openInNewTab` / `focusNewTab`", while §7.2 step 5 says flatly "Open `https://chatgpt.com/` in a new tab". The setting's name suggests it governs both, and nothing said otherwise.
+
+**Reasoning.** Navigating the current tab to ChatGPT would destroy the problem page — the page the prompt was just built from, and the page the user returns to after reading the review. Worse, the extraction that fills the prompt happens in that tab, so "reuse the tab" and "have something to send" are in direct conflict. The YouTube case has no such problem: the search is terminal, and a solver who wants to stay in one tab is expressing a real preference about their tab strip.
+
+**Alternatives.** Honour the setting for both (rejected: closes the problem page mid-action); rename the setting to `openYouTubeInNewTab` (rejected: it is stored data, so renaming costs a migration for a label — worth doing if the options page proves confusing, not before); a second setting for ChatGPT (rejected: a toggle whose only sensible value is `true`).
+
+**Consequences.** A user who turns the setting off still gets a new ChatGPT tab, which looks inconsistent until the options page explains it — so the options page must ([todo.md](todo.md) #12). `focusNewTab: false` remains meaningful for ChatGPT, and is the more interesting case: the tab loads in the background, the prompt still lands in the composer, and the review banner is waiting when the user switches to it.
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §5, §7.1, §7.2
 
 ---
 
