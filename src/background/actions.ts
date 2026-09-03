@@ -8,7 +8,14 @@
  */
 
 import type { ActionId, Msg, ProblemContext, Settings, ToastLevel } from '../core/types';
-import { getSettings } from '../core/storage';
+import {
+  getHistory,
+  getSettings,
+  setHistory,
+  setLastExtraction,
+  flushWrites,
+} from '../core/storage';
+import { entryFromContext, recordVisit } from '../core/history';
 import { platformForUrl } from '../core/urls';
 import { buildQuery, searchUrl, varsFromContext, varsFromTab } from '../core/youtube';
 import { buildPrompt, describeResult, promptGaps } from '../core/prompt';
@@ -105,9 +112,40 @@ async function requestContext(tabId: number): Promise<ProblemContext | null> {
     reply !== null &&
     (reply as Msg).type === 'CONTEXT_RESULT'
   ) {
-    return (reply as Extract<Msg, { type: 'CONTEXT_RESULT' }>).context;
+    const result = reply as Extract<Msg, { type: 'CONTEXT_RESULT' }>;
+    await remember(result.context, result.diagnostics ?? []);
+    return result.context;
   }
   return null;
+}
+
+/**
+ * Record the visit and keep the extraction for the options page.
+ *
+ * Every action that reads a problem passes through here, which is what makes
+ * history a record of *problems the solver worked on* rather than of pages
+ * they happened to open (spec.md section 5.1).
+ *
+ * Nothing here may throw into an action: a full history list must never be the
+ * reason a search does not open (D016).
+ */
+async function remember(context: ProblemContext, diagnostics: string[]): Promise<void> {
+  try {
+    const settings = await getSettings();
+    setLastExtraction({ context, diagnostics, at: Date.now() });
+
+    const [history] = await Promise.all([getHistory()]);
+    const next = recordVisit(history, entryFromContext(context, Date.now()), {
+      historyLimit: settings.historyLimit,
+      historyPaused: settings.historyPaused,
+    });
+    setHistory(next);
+    // The worker may be killed moments after an action; a debounced write
+    // that never lands is a visit silently lost.
+    await flushWrites();
+  } catch {
+    // History is a convenience. Losing a visit is not worth failing an action.
+  }
 }
 
 async function openResult(

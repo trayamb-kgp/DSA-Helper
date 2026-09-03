@@ -87,12 +87,12 @@ Capture early — they're the only thing that detects a site redesign before use
 - [x] **M4** Prompt builder + copy-to-clipboard
 - [x] **M5** ChatGPT injection — banner + clipboard fallback
 - [x] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
-- [ ] **M7** Options page + history
+- [x] **M7** Options page + history
 - [ ] **M8** Polish — README statements, icons, ready to package
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M6 done 2026-09-03 — 454 tests, all four platforms, content script 27 KB, dist 298 KB. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M6 done 2026-09-03 — 454 tests, all four platforms, content script 27 KB, dist 298 KB. M7 done 2026-09-03 — 491 tests, dist 327 KB; the options page is the first substantial UI and none of its rendering is test-covered, so it needs eyes. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 
@@ -141,7 +141,9 @@ Everything below is automated-green but needs a real browser to confirm.
 
 **Phase 6 — the other three platforms** ([TESTING.md](TESTING.md) §3e): one practice and one contest URL per platform (GfG: practice only); **confirm the GfG hashed class names still match**, which is the single most likely thing to be wrong.
 
-Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a–§3e.
+**Phase 7 — options, history and diagnostics** ([TESTING.md](TESTING.md) §3f): walk every section of the options page — none of its rendering is test-covered; **read a copied broken-page report** and confirm no code is in it; check history de-duplicates across both Codeforces URL forms.
+
+Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a–§3f.
 
 **Notes:** _—_
 
@@ -149,11 +151,11 @@ Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpa
 
 ## 12. Options page must explain `openInNewTab`'s scope
 
-- [ ] Label it so it reads as governing the YouTube result only
+- [x] Label it so it reads as governing the YouTube result only
 
 [D042](decisions.md#d042) settled that the ChatGPT action always opens a new tab — navigating the current tab would destroy the problem page the prompt was built from. That is right, and it looks like a bug next to a setting called "open in new tab". The options page (phase 7) has to say which action it applies to.
 
-**Notes:** _—_
+**Notes:** _Done in phase 7. The toggle reads "Open results in a new tab" with the hint "YouTube only — Ask ChatGPT always opens a new tab, so the problem page you are on is not closed underneath you."_
 
 ---
 

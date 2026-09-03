@@ -77,6 +77,7 @@
 | [D041](#d041) | The clipboard write happens in whichever surface has focus | Accepted | 2026-09-03 |
 | [D042](#d042) | `openInNewTab` governs the YouTube result only | Accepted | 2026-09-03 |
 | [D043](#d043) | Adapter-common code lives in `shared.ts`, not in an adapter | Accepted | 2026-09-03 |
+| [D044](#d044) | Diagnostics report the last extraction, not a live one | Accepted | 2026-09-03 |
 
 ---
 
@@ -664,6 +665,21 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** One more module in the extraction subsystem, and its tests live in `shared.test.ts` rather than being reached through one platform's fixtures — which is what keeps it honest about being platform-neutral. The Codeforces adapter is the standing proof the split is real: it does **not** use the shared splitter, because its statements are structured in the DOM and are frequently in Russian, so matching English heading text would work on roughly half the site.
 
 **Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §6.1, §8.3, [spec.md](spec.md) §4.2
+
+<a id="d044"></a>
+### D044 — Diagnostics report the last extraction, not a live one
+
+**Decision.** The options page's diagnostics panel shows the **most recent** extraction, stored in `chrome.storage.local` by whichever action ran it. It does not re-run extraction against a tab. `diagnostics` rides on the `CONTEXT_RESULT` message rather than inside `ProblemContext`, and `GET_CONTEXT_FOR_POPUP` — unused since it was written — is removed from the contract.
+
+**Context.** [architecture.md](architecture.md) §10.4 describes the panel as running "the resolver + adapter against the current tab".
+
+**Reasoning.** An options page has no current tab. It is itself a tab, so `tabs.query({active: true})` returns the options page; and Chrome may open it in its own window, so "the last focused window" is no better. Every workaround — scan every tab for a supported URL, ask the user to pick one — adds a step to the moment when someone is already confused about why a page did not work. Storing the extraction when it happens inverts that: the user hits the problem, opens settings, and the report is already there. It is also the more honest artefact, since it reports what actually happened rather than what happens on a re-run that may now succeed.
+
+**Alternatives.** Re-run against the first supported tab found (rejected: silently reports a different page than the one that failed); a diagnostics button in the popup instead (rejected: the popup is small and this is a rare, deliberate act); put `diagnostics` in `ProblemContext` (rejected: it is data about the *extraction*, not about the problem, and it would then ride into every prompt path that carries a context).
+
+**Consequences.** One `local` key, overwritten per action, holding one problem's worth of extraction — which includes the user's code, so it is `local` and never `sync` ([D018](#d018)). A user who has never used the extension sees an empty panel, which the copy says plainly. The panel is one action behind if the page has since changed.
+
+**Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §10.4, [spec.md](spec.md) §4.1, [D031](#d031)
 
 ---
 

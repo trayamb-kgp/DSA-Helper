@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–6 complete (manual Chrome checks from phases 0, 2–6 outstanding). Phase 7 is next.
+**Status:** phases 0–7 complete (manual Chrome checks from phases 0, 2–7 outstanding). Phase 8 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -535,35 +535,72 @@ Verified automatically — `npm run typecheck`, `npm test` (454 tests, 71 new) a
 
 ### Tasks
 
-- [ ] Options shell with sections per [spec.md](../spec.md) §9.4
-- [ ] Template editors with reset-to-default and **live preview** against the last-seen problem, or a bundled sample
-- [ ] **Copy-to-clipboard button per template** ([D029](../decisions.md))
-- [ ] Character counter and size warning approaching the sync per-item limit ([D018](../decisions.md))
-- [ ] Behaviour toggles: new tab, focus, include code, auto-inject, max prompt chars
-- [ ] History section: limit, clear, and the plain statement that uninstalling erases everything ([D029](../decisions.md))
-- [ ] **Pause history** toggle in the popup ([D029](../decisions.md), [domain.md](../domain.md) R17)
-- [ ] Popup history list, each entry re-triggerable
-- [ ] Theme: system / light / dark
-- [ ] Diagnostics panel — which selector matched, which fallback, what failed ([architecture.md](../architecture.md) §10.4)
-- [ ] "Report a broken page" — redacted blob, **never statement text, never code**; clipboard + prefilled issue
-- [ ] Link out to `chrome://extensions/shortcuts`
+- [x] Options shell with sections per [spec.md](../spec.md) §9.4
+- [x] Template editors with reset-to-default and **live preview** against the last-seen problem, or a bundled sample
+- [x] **Copy-to-clipboard button per template** ([D029](../decisions.md))
+- [x] Character counter and size warning approaching the sync per-item limit ([D018](../decisions.md))
+- [x] Behaviour toggles: new tab, focus, include code, auto-inject, max prompt chars
+- [x] History section: limit, clear, and the plain statement that uninstalling erases everything ([D029](../decisions.md))
+- [x] **Pause history** toggle in the popup ([D029](../decisions.md), [domain.md](../domain.md) R17)
+- [x] Popup history list, each entry re-triggerable
+- [x] Theme: system / light / dark
+- [x] Diagnostics panel — which selector matched, which fallback, what failed ([architecture.md](../architecture.md) §10.4)
+- [x] "Report a broken page" — redacted blob, **never statement text, never code**; clipboard + prefilled issue
+- [x] Link out to `chrome://extensions/shortcuts`
 
 ### Decisions
 
-_None yet._
+One went into [decisions.md](../decisions.md):
+
+- **[D044](../decisions.md#d044) — diagnostics report the last extraction, not a live one.** [architecture.md](../architecture.md) §10.4 describes the panel as running the adapter "against the current tab". An options page has no current tab — it *is* a tab, and may be in its own window. So the extraction is stored when it happens and the panel reads it back, which is also the more honest artefact: it reports what actually failed, not what a re-run does now.
+
+**A real bug, found by using the code:** `setSettings` **replaced** the stored settings object instead of merging into it. Changing the theme would have silently reset both templates, the history limit and every toggle. It had gone unnoticed since phase 1 because nothing called it — phase 7 is its first caller, twice over. Fixed, with the merge reading the debounce queue first so two changes inside one window cannot overwrite each other, and pinned by tests.
+
+Smaller calls, recorded here only:
+
+- **`GET_CONTEXT_FOR_POPUP` is removed from the message contract.** Phase 3 left it open whether it earned its place; it did not. The popup asks the tab directly, which is presentation rather than orchestration and so does not cut across [D013](../decisions.md#d013).
+- **`diagnostics` rides on `CONTEXT_RESULT`, not inside `ProblemContext`.** It is data about the extraction, not about the problem, and putting it in the model would carry it into every prompt path.
+- **`lastContext` became `lastExtraction`** — `{ context, diagnostics, at }`. Nothing had ever written the old key, so there is no stored shape to migrate.
+- **The diagnostics table distinguishes `missing` from `absent (expected)`.** A Codeforces problem page has no editor and GfG has no number; reporting either as a fault sends someone chasing a bug that is not there ([D014](../decisions.md#d014), [D027](../decisions.md#d027)).
+- **The popup carries a known-breakage line** when four or more fields fail at once ([architecture.md](../architecture.md) §10.4). One missing field is ordinary ([D015](../decisions.md#d015)); most of them at once is a redesign, and saying so deflects duplicate reports.
+- **`ISSUE_URL` is null.** There is no repository URL yet ([todo.md](../todo.md) #3, #4), so the report button copies the blob — the part that matters — and the "open an issue" link simply is not rendered until there is somewhere to point it.
+- **The YouTube template shows a character count, not a byte budget.** It shares the `settings` sync item with everything else, so a byte figure against the 8 KB per-item cap would be misleading. The prompt template has its own key, so its byte counter is exact — and that is the one that can realistically approach the cap ([D018](../decisions.md#d018)).
+- **Theme is applied by stamping `data-theme` on the root**, and `system` *removes* the attribute rather than setting a third value, so the CSS media query is back in charge with nothing to override.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification.
+
+Verified automatically — `npm run typecheck`, `npm test` (491 tests, 37 new) and `npm run build` all clean:
+
+- **The redaction rule holds**: a report built from a context stuffed with sentinel strings contains none of them — not the statement, examples, constraints or code, not even a fragment — and the query string never survives into the URL
+- Sizes and presence are reported instead, which is what a maintainer actually needs
+- History records on every action; **both Codeforces URL forms collapse onto one entry**, keeping the most recently visited variant ([D024](../decisions.md#d024)) — the case the plan asked for
+- A returning problem moves to the top rather than duplicating; the limit caps the list; a limit of zero records nothing
+- **Pausing stops recording without disturbing what is already there** ([domain.md](../domain.md) R17)
+- A history write that throws never stops an action ([D016](../decisions.md#d016))
+- The last extraction is stored in `local` only — it carries the user's code, so it never reaches `sync` ([D018](../decisions.md#d018))
+- `setSettings` merges: a patch leaves untouched settings alone, and two changes inside one debounce window both survive
+- Theme applies and, for `system`, un-applies
+- `dist/` 327 KB against the 500 KB budget; still no React in the content scripts or the worker
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3f.** The options page is the first substantial UI in the project and **none of its rendering is covered by tests** — there is no React testing library in the project, and adding one for this was not in scope. Everything it *computes* is core and tested; everything it *draws* needs eyes.
+
+1. Open the options page and walk every section.
+2. Edit a template, reload, confirm it persisted — and confirm the other settings did **not** reset (the bug above).
+3. Use the extension on a problem, then check the diagnostics panel and **read the copied report** to see for yourself that no code is in it.
+4. Check history de-duplication live: visit `1352A` by both Codeforces paths, confirm one entry.
 
 ### Additional Notes
 
 - The diagnostics panel is what makes support scale without telemetry ([D031](../decisions.md)). It's tempting to cut under time pressure; it shouldn't be.
-- Test history de-duplication with both Codeforces URL forms for the same problem — that's the case [D024](../decisions.md) exists for.
+- Test history de-duplication with both Codeforces URL forms for the same problem — that's the case [D024](../decisions.md) exists for. Done in `actions.test.ts`, and worth repeating by hand.
+- **The redaction rule needs maintaining, not just passing.** `diagnostics.test.ts` checks the fields that exist today. A new field on `ProblemContext` that carries user content has to be added to that test at the same time, or it will ship into a public issue tracker.
+- Before release, `ISSUE_URL` in `Options.tsx` needs a real address, and the phase-8 store listing should mention that the extension collects nothing.
 
 ---
 

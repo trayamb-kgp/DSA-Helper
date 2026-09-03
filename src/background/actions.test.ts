@@ -30,6 +30,7 @@ interface FakeChrome {
   /** Id given to a tab created by the action. Null means Chrome gave us none. */
   newTabId: number | null;
   session: Record<string, unknown>;
+  local: Record<string, unknown>;
 }
 
 let fake: FakeChrome;
@@ -45,6 +46,7 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
     injectionResult: true,
     newTabId: 99,
     session: {},
+    local: {},
   };
 
   const { promptTemplate, ...rest } = { ...DEFAULT_SETTINGS, ...settings };
@@ -68,6 +70,21 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
         },
         remove: async (keys: string | string[]) => {
           for (const key of typeof keys === 'string' ? [keys] : keys) delete state.session[key];
+        },
+      },
+      local: {
+        get: async (keys: string | string[] | null) => {
+          if (keys === null) return { ...state.local };
+          const wanted = typeof keys === 'string' ? [keys] : keys;
+          const out: Record<string, unknown> = {};
+          for (const key of wanted) if (key in state.local) out[key] = state.local[key];
+          return out;
+        },
+        set: async (items: Record<string, unknown>) => {
+          Object.assign(state.local, items);
+        },
+        remove: async (keys: string | string[]) => {
+          for (const key of typeof keys === 'string' ? [keys] : keys) delete state.local[key];
         },
       },
     },
@@ -502,6 +519,143 @@ describe('runAction — the ChatGPT action (spec §7.2)', () => {
     // The fake sync area records nothing, and there is no local area at all:
     // a write to either would throw rather than pass quietly.
     expect(Object.keys(fake.session).every((k) => k.startsWith('pendingPrompt:'))).toBe(true);
+  });
+});
+
+describe('history recording (D024, spec §5.1)', () => {
+  interface StoredEntry {
+    problemKey: string;
+    url: string;
+    title: string;
+  }
+
+  function historyOf(state: FakeChrome): StoredEntry[] {
+    return (state.local['history'] as StoredEntry[] | undefined) ?? [];
+  }
+
+  it('records a visit when an action runs', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context() };
+    const { runAction } = await load();
+    await runAction('youtube', tab());
+
+    expect(historyOf(fake)).toHaveLength(1);
+    expect(historyOf(fake)[0]?.problemKey).toBe('leetcode:sort-an-array');
+  });
+
+  it('keeps the last extraction for the options page, in local storage only', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'int main() {}' }) };
+    const { runAction } = await load();
+    await runAction('youtube', tab());
+
+    const last = fake.local['lastExtraction'] as { context: { code: string } };
+    expect(last.context.code).toBe('int main() {}');
+    // The context carries the user's code, so it never reaches sync (D018).
+    expect(JSON.stringify(fake.session)).not.toContain('int main');
+  });
+
+  it('collapses both Codeforces URL forms onto one entry', async () => {
+    // The case D024 exists for: 1352A is reachable at /problemset/problem/…
+    // and at /contest/…/problem/…, and they are one problem.
+    const cf = (url: string) =>
+      context({
+        platform: 'codeforces',
+        platformLabel: 'Codeforces',
+        slug: '1352A',
+        number: '1352A',
+        title: 'Sum of Round Numbers',
+        url,
+      });
+
+    const { runAction } = await load();
+
+    fake.contextReply = {
+      type: 'CONTEXT_RESULT',
+      context: cf('https://codeforces.com/problemset/problem/1352/A'),
+    };
+    await runAction('youtube', tab({ url: 'https://codeforces.com/problemset/problem/1352/A' }));
+
+    fake.contextReply = {
+      type: 'CONTEXT_RESULT',
+      context: cf('https://codeforces.com/contest/1352/problem/A'),
+    };
+    await runAction('youtube', tab({ id: 8, url: 'https://codeforces.com/contest/1352/problem/A' }));
+
+    const history = historyOf(fake);
+    expect(history).toHaveLength(1);
+    // And it holds the variant most recently visited, so returning to it takes
+    // the solver back where they were.
+    expect(history[0]?.url).toBe('https://codeforces.com/contest/1352/problem/A');
+  });
+
+  it('moves a returning problem back to the top rather than duplicating it', async () => {
+    const { runAction } = await load();
+
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ slug: 'first' }) };
+    await runAction('youtube', tab({ id: 1 }));
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ slug: 'second' }) };
+    await runAction('youtube', tab({ id: 2 }));
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ slug: 'first' }) };
+    await runAction('youtube', tab({ id: 3 }));
+
+    const history = historyOf(fake);
+    expect(history).toHaveLength(2);
+    expect(history[0]?.problemKey).toBe('leetcode:first');
+  });
+
+  it('records nothing while paused, and disturbs nothing already there (R17)', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context() };
+    const first = await load();
+    await first.runAction('youtube', tab());
+    const recorded = fake.local['history'];
+    expect(historyOf(fake)).toHaveLength(1);
+
+    // Pausing stops recording; it does not clear what is already there.
+    fake = installChrome({ historyPaused: true });
+    fake.local['history'] = recorded;
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ slug: 'another' }) };
+
+    const second = await load();
+    await second.runAction('youtube', tab({ id: 5 }));
+
+    expect(historyOf(fake)).toHaveLength(1);
+    expect(historyOf(fake)[0]?.problemKey).toBe('leetcode:sort-an-array');
+  });
+
+  it('records nothing when the limit is zero', async () => {
+    fake = installChrome({ historyLimit: 0 });
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context() };
+    const { runAction } = await load();
+    await runAction('youtube', tab());
+
+    expect(historyOf(fake)).toHaveLength(0);
+  });
+
+  it('caps the list at the limit', async () => {
+    fake = installChrome({ historyLimit: 2 });
+    const { runAction } = await load();
+
+    for (const slug of ['a', 'b', 'c']) {
+      fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ slug }) };
+      await runAction('youtube', tab({ id: slug.charCodeAt(0) }));
+    }
+
+    const history = historyOf(fake);
+    expect(history).toHaveLength(2);
+    expect(history.map((e) => e.problemKey)).toEqual(['leetcode:c', 'leetcode:b']);
+  });
+
+  it('never lets a history failure stop an action (D016)', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context() };
+    const chromeApi = (globalThis as { chrome: { storage: { local: { set: unknown } } } }).chrome;
+    chromeApi.storage.local.set = async () => {
+      throw new Error('quota');
+    };
+
+    const { runAction } = await load();
+    await runAction('youtube', tab());
+
+    // The search still opened.
+    expect(fake.created).toHaveLength(1);
   });
 });
 

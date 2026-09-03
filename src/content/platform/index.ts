@@ -58,7 +58,7 @@ function makeEnv(): ExtractEnv {
  * Returns null for a page no adapter claims. That is not a failure and not a
  * `Msg` -- it is the caller's cue to show the unsupported-page state.
  */
-async function extract(): Promise<ProblemContext | null> {
+async function extract(): Promise<{ context: ProblemContext; diagnostics: string[] } | null> {
   const env = makeEnv();
   const adapter = resolveAdapter(env.url);
   if (!adapter) return null;
@@ -69,15 +69,20 @@ async function extract(): Promise<ProblemContext | null> {
     env.warnings.push("The page hadn't finished loading — some details may be missing");
   }
 
-  return buildContext(adapter, env);
+  const context = await buildContext(adapter, env);
+  // Which selector matched, which fallback. Support-facing, and the only
+  // signal a breakage produces when there is no telemetry (D031).
+  return { context, diagnostics: env.diagnostics };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!isExtractRequest(message)) return false;
 
   void extract()
-    .then((context) => {
-      const reply: Msg | null = context ? { type: 'CONTEXT_RESULT', context } : null;
+    .then((result) => {
+      const reply: Msg | null = result
+        ? { type: 'CONTEXT_RESULT', context: result.context, diagnostics: result.diagnostics }
+        : null;
       sendResponse(reply);
     })
     .catch(() => {

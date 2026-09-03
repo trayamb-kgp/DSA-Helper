@@ -63,19 +63,17 @@ For iterative work, `npm run dev` gives hot reload; the extension still has to b
 
 The service worker sleeps after ~30 s. Opening its console wakes it; a keystroke also wakes it, so a cold worker is not a bug.
 
-### 2.2 Changing settings before phase 7
+### 2.2 Changing settings
 
-The options page is a scaffold until phase 7, so there is no UI for the toggles yet. Set them from the **service worker console**:
+Use the options page — the extension card's **Details** → **Extension options**, or the **Settings** link at the foot of the popup. Every toggle in §3 onward is there.
 
-```js
-await chrome.storage.sync.set({ settings: { autoInjectChatGpt: false } })
-```
-
-This **replaces** the whole settings object rather than merging into it — anything omitted falls back to its default, which is what you want between checks. No reload is needed; every action reads settings fresh. To go back to stock:
+To reset everything to stock, or to set something quickly while testing, the **service worker console** still works:
 
 ```js
-await chrome.storage.sync.remove('settings')
+await chrome.storage.sync.remove(['settings', 'promptTemplate'])
 ```
+
+No reload is needed after either: every action reads settings fresh.
 
 ---
 
@@ -111,12 +109,15 @@ Copy the prompt and **paste it into ChatGPT by hand**. Read the reply. Pick a pr
 **Round 5 — the other three platforms.** (§3e, ~10 min)
 **GeeksforGeeks first** — its hashed CSS-module class names are the most likely thing in the project to be wrong. Then CodeChef, then Codeforces.
 
+**Round 5b — options, history and diagnostics.** (§3f, ~10 min)
+The options page has **no test coverage of its rendering at all**, so this is the round where eyes are the only check. Walk every section, then read a copied broken-page report and confirm your code is not in it.
+
 **Round 6 — the failure paths.** (~10 min)
 Fire a shortcut on `example.com` (expect a toast), on `chrome://extensions` (expect a `!` badge), and break the ChatGPT composer selector on purpose to prove the clipboard fallback fires (§3d).
 
 **If you only have fifteen minutes:** Round 0, Round 1, Round 3. Those three tell you whether the thing works.
 
-**When something is wrong,** note the platform, the exact URL, what the popup showed, and anything in the service worker console. The diagnostics the adapters record — which selector matched, which fallback — are collected but **not surfaced anywhere yet**; the panel that shows them is phase 7.
+**When something is wrong,** open **Settings → Diagnostics**. It shows what the last extraction managed, field by field, including which selector matched and which fallback it had to reach for, and the **Copy a broken-page report** button puts all of that on your clipboard. That report is designed to be pasted as-is: it carries no problem text and none of your code. Add the exact URL and anything in the service worker console.
 
 ---
 
@@ -273,6 +274,40 @@ Manual, in a real Chrome. **The fixtures for these three are hand-built** ([todo
 - [ ] **No code on a Codeforces problem page** — the popup says code was not captured, and nothing reads as an error
 - [ ] **A Codeforces submit page** — code *is* captured there
 - [ ] Then update the fixtures from what you saw, and confirm the suite still passes unchanged
+
+---
+
+## 3f. Phase 7 acceptance — options, history and diagnostics
+
+Automated:
+
+- [x] **The redaction rule holds** — a report built from a context stuffed with sentinel strings contains none of them, not even a fragment, and the query string never survives into the reported URL (architecture.md §10.4)
+- [x] Sizes and presence are reported in their place
+- [x] The report separates `missing` from `absent (expected)`, so a Codeforces page with no editor is not reported as a fault
+- [x] History records on every action; **both Codeforces URL forms collapse onto one entry**, keeping the most recently visited variant ([D024](decisions.md#d024))
+- [x] A returning problem moves to the top; the limit caps the list; a limit of zero records nothing
+- [x] Pausing stops recording without disturbing what is already there ([domain.md](domain.md) R17)
+- [x] A history write that throws never stops an action ([D016](decisions.md#d016))
+- [x] The last extraction is stored in `local` only — it carries the user's code ([D018](decisions.md#d018))
+- [x] `setSettings` merges: a patch leaves untouched settings alone, and two changes inside one debounce window both survive
+- [x] Theme applies, and `system` un-applies rather than setting a third value
+
+Manual, in a real Chrome. **This section matters more than the others:** the options page is the first substantial UI in the project and **none of its rendering is covered by tests**. Everything it computes is core and tested; everything it draws needs eyes.
+
+- [ ] **Every section renders** — Templates, Behaviour, History, Appearance, Diagnostics, Shortcuts, About. Nothing overlapping, nothing cut off
+- [ ] **A template edit persists** — change the YouTube template, reload the page, confirm it stuck
+- [ ] **And nothing else reset** — after that edit, check the history limit, the toggles and the prompt template are all as you left them. This is the bug phase 7 found: `setSettings` used to replace the whole settings object
+- [ ] **Reset to default** restores the shipped template, and **Copy** puts it on the clipboard
+- [ ] **The previews are live** — edit a template and watch the preview under it change. Before you have used the extension on anything it previews a bundled sample; after, it previews your last problem
+- [ ] **The size warning fires** — paste ~7 KB into the prompt template and confirm the counter turns amber, then red past 8 KB
+- [ ] **Theme** — set light on a dark system and dark on a light one; check both the options page *and* the popup
+- [ ] **History de-duplicates live** — open `1352A` on Codeforces by `/problemset/problem/1352/A`, use an action, then by `/contest/1352/problem/A` and use one again. **One entry**, pointing at the second URL
+- [ ] **Pause** — turn it on in the popup, visit a new problem, confirm nothing is added and the existing list is untouched
+- [ ] **Forget one** (the × beside an entry) and **Clear history** both work
+- [ ] **A history entry re-opens its problem** in a new tab
+- [ ] **The diagnostics panel** shows the last problem, field by field, with fallback selector notes
+- [ ] **Read the copied report.** Copy it, paste it into a text editor, and look: your code must not be in it, and neither must the problem statement. This is the one check nobody else can do for you
+- [ ] **The known-breakage line** — hard to trigger deliberately; if you ever see a page where most fields fail, confirm the popup points at Diagnostics rather than looking merely broken
 
 ---
 

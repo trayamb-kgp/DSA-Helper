@@ -90,9 +90,13 @@ export type ToastLevel = 'info' | 'warn' | 'error';
 /** Discriminated union carried by every sendMessage call (spec.md 4.1). */
 export type Msg =
   | { type: 'EXTRACT_CONTEXT' }
-  | { type: 'CONTEXT_RESULT'; context: ProblemContext }
+  /**
+   * `diagnostics` rides alongside rather than inside `ProblemContext`: it is
+   * support data about the *extraction*, not part of the problem, and the
+   * data model has no business carrying it (D031, D044).
+   */
+  | { type: 'CONTEXT_RESULT'; context: ProblemContext; diagnostics?: string[] }
   | { type: 'RUN_ACTION'; action: ActionId; tabId?: number }
-  | { type: 'GET_CONTEXT_FOR_POPUP' }
   | { type: 'CLAIM_PENDING_PROMPT' }
   /**
    * Reply to a RUN_ACTION of 'copyPrompt' sent from the popup, which has to do

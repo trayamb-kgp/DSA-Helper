@@ -39,7 +39,7 @@ export const KEYS = Object.freeze({
   settings: 'settings',
   promptTemplate: 'promptTemplate',
   history: 'history',
-  lastContext: 'lastContext',
+  lastExtraction: 'lastExtraction',
   schemaVersion: SCHEMA_VERSION_KEY,
 });
 
@@ -135,6 +135,17 @@ export class DebouncedWriter {
   get hasPending(): boolean {
     return Object.keys(this.pending).length > 0;
   }
+
+  /**
+   * The queued value for a key, if any.
+   *
+   * A read-modify-write has to see writes that are buffered but not yet
+   * flushed, or a second change inside the debounce window overwrites the
+   * first with a value read from before it.
+   */
+  peek(key: string): unknown {
+    return this.pending[key];
+  }
 }
 
 const syncWriter = new DebouncedWriter('sync');
@@ -182,13 +193,30 @@ export async function getSettings(): Promise<Settings> {
 /**
  * Persist a partial settings update. Writes are debounced; `promptTemplate`
  * is split onto its own key.
+ *
+ * The patch is **merged** over what is already stored. Writing only the changed
+ * field would replace the whole object, and every setting the caller did not
+ * mention would silently revert to its default the next time it was read —
+ * changing the theme would reset both templates.
+ *
+ * The merge reads the queued value first and storage only when nothing is
+ * queued, so two changes inside one debounce window do not overwrite each
+ * other.
  */
-export function setSettings(patch: Partial<Settings>): void {
+export async function setSettings(patch: Partial<Settings>): Promise<void> {
   const { promptTemplate, ...rest } = patch;
-  const items: Record<string, unknown> = {};
-  if (Object.keys(rest).length > 0) items[KEYS.settings] = rest;
-  if (promptTemplate !== undefined) items[KEYS.promptTemplate] = promptTemplate;
-  if (Object.keys(items).length > 0) syncWriter.set(items);
+
+  if (promptTemplate !== undefined) {
+    syncWriter.set({ [KEYS.promptTemplate]: promptTemplate });
+  }
+  if (Object.keys(rest).length === 0) return;
+
+  const queued = syncWriter.peek(KEYS.settings) as Partial<Settings> | undefined;
+  const current =
+    queued ??
+    ((await area('sync').get(KEYS.settings))[KEYS.settings] as Partial<Settings> | undefined);
+
+  syncWriter.set({ [KEYS.settings]: { ...(current ?? {}), ...rest } });
 }
 
 /**
@@ -213,14 +241,38 @@ export function setHistory(history: readonly HistoryEntry[]): void {
   localWriter.set({ [KEYS.history]: history });
 }
 
-/** The context the options page previews a template against. */
-export async function getLastContext(): Promise<ProblemContext | null> {
-  const stored = await area('local').get(KEYS.lastContext);
-  return (stored[KEYS.lastContext] as ProblemContext | undefined) ?? null;
+/**
+ * The most recent extraction, kept for the options page.
+ *
+ * It backs two things: the live template preview, and the diagnostics panel,
+ * which reports the *last* extraction rather than a live one because an
+ * options page has no meaningful "current tab" (D044).
+ *
+ * Local, never sync: it holds a `ProblemContext`, and that carries the user's
+ * code (D018). It is overwritten on every action, so it is one problem's worth
+ * at a time rather than an accumulating record.
+ */
+export interface LastExtraction {
+  context: ProblemContext;
+  /** Which selector matched, which fallback -- support-facing (D031). */
+  diagnostics: string[];
+  /** Epoch ms. */
+  at: number;
 }
 
-export function setLastContext(context: ProblemContext): void {
-  localWriter.set({ [KEYS.lastContext]: context });
+export async function getLastExtraction(): Promise<LastExtraction | null> {
+  const stored = await area('local').get(KEYS.lastExtraction);
+  const value = stored[KEYS.lastExtraction] as LastExtraction | undefined;
+  return value?.context ? value : null;
+}
+
+export function setLastExtraction(extraction: LastExtraction): void {
+  localWriter.set({ [KEYS.lastExtraction]: extraction });
+}
+
+/** Forget the last extraction. Called when history is cleared. */
+export async function clearLastExtraction(): Promise<void> {
+  await area('local').remove(KEYS.lastExtraction);
 }
 
 // --- migrations ------------------------------------------------------------

@@ -1,26 +1,51 @@
+/*
+ * Popup styling.
+ *
+ * Theme has three states and the CSS carries all of them: `:root` is light,
+ * the media query handles "match my system", and `[data-theme]` is the
+ * explicit override `core/theme.ts` stamps on. The media query is guarded
+ * against `[data-theme="light"]` so choosing light on a dark system works.
+ */
+
 :root {
   color-scheme: light dark;
   --bg: #ffffff;
   --fg: #18181b;
   --muted: #71717a;
   --accent: #4f46e5;
+  --border: #e4e4e7;
+  --surface: #fafafa;
+  --warn: #b45309;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #18181b;
     --fg: #fafafa;
     --muted: #a1a1aa;
     --accent: #818cf8;
+    --border: #3f3f46;
+    --surface: #232327;
+    --warn: #fbbf24;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #18181b;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --accent: #818cf8;
+  --border: #3f3f46;
+  --surface: #232327;
+  --warn: #fbbf24;
 }
 
 body {
   margin: 0;
-  min-width: 320px;
+  width: 340px;
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 .popup {
@@ -39,7 +64,6 @@ body {
   font-size: 13px;
 }
 
-/* Phase 2 verification readout. Replaced by the popup proper in phase 7. */
 .title {
   margin: 0 0 12px;
   font-weight: 600;
@@ -67,6 +91,15 @@ body {
   color: var(--accent);
 }
 
+/* A redesign, not one bad selector — deflects duplicate reports. */
+.broken {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warn);
+  background: var(--surface);
+  font-size: 12px;
+}
+
 .warnings {
   margin: 12px 0 0;
   padding-left: 18px;
@@ -74,7 +107,6 @@ body {
   font-size: 12px;
 }
 
-/* Phase 3: the resolved-query preview and its button (D006). */
 .preview-label {
   margin: 14px 0 4px;
   font-size: 12px;
@@ -86,42 +118,147 @@ body {
 .preview {
   margin: 0 0 10px;
   padding: 7px 9px;
-  border: 1px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
 
-.primary {
+.primary,
+.secondary {
+  display: block;
   width: 100%;
   padding: 8px 12px;
-  border: 0;
   border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary {
+  border: 0;
   background: var(--accent);
   color: #fff;
-  font: inherit;
   font-weight: 600;
-  cursor: pointer;
 }
 
 .primary:hover {
   filter: brightness(1.08);
 }
 
-/* Phase 4: the clipboard action, which the popup completes itself (D040). */
 .secondary {
-  width: 100%;
   margin-top: 6px;
-  padding: 8px 12px;
-  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
-  border-radius: 6px;
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg);
-  font: inherit;
-  cursor: pointer;
 }
 
 .secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* --- history --- */
+
+.history {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.history summary {
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.pause {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.history-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.history-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-list a {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 6px;
+  border-radius: 5px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.history-list a:hover {
+  background: var(--surface);
+}
+
+.history-platform {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forget {
+  flex: none;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.forget:hover {
+  color: var(--fg);
+  background: var(--surface);
+}
+
+/* --- footer --- */
+
+.footer {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  text-align: right;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
 }

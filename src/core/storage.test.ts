@@ -8,6 +8,7 @@ import {
   checkItemSize,
   checkPromptTemplateSize,
   ensureMigrated,
+  flushWrites,
   getHistory,
   getSettings,
   measureItem,
@@ -128,6 +129,57 @@ describe('getSettings', () => {
   it('falls back to the default template when the key is absent', async () => {
     sync.data[KEYS.settings] = { historyLimit: 3 };
     await expect(getSettings()).resolves.toMatchObject({ promptTemplate: DEFAULT_PROMPT });
+  });
+});
+
+describe('setSettings merges rather than replaces', () => {
+  it('leaves settings the patch did not mention alone', async () => {
+    // The bug this pins down: writing only the changed field replaces the
+    // whole stored object, so changing the theme silently resets the
+    // templates, the history limit and every toggle.
+    sync.data[KEYS.settings] = {
+      youtubeTemplate: 'mine',
+      historyLimit: 5,
+      includeCode: false,
+    };
+
+    await setSettings({ theme: 'dark' });
+    await flushWrites();
+
+    const settings = await getSettings();
+    expect(settings.theme).toBe('dark');
+    expect(settings.youtubeTemplate).toBe('mine');
+    expect(settings.historyLimit).toBe(5);
+    expect(settings.includeCode).toBe(false);
+  });
+
+  it('survives two changes inside one debounce window', async () => {
+    // The second read has to see the first write while it is still queued,
+    // or it merges over a value from before it.
+    sync.data[KEYS.settings] = { historyLimit: 5 };
+
+    await setSettings({ theme: 'dark' });
+    await setSettings({ includeCode: false });
+    await flushWrites();
+
+    const settings = await getSettings();
+    expect(settings.theme).toBe('dark');
+    expect(settings.includeCode).toBe(false);
+    expect(settings.historyLimit).toBe(5);
+  });
+
+  it('still keeps the prompt template on its own key', async () => {
+    await setSettings({ promptTemplate: 'mine', theme: 'dark' });
+    await flushWrites();
+
+    expect(sync.data[KEYS.promptTemplate]).toBe('mine');
+    expect(sync.data[KEYS.settings]).not.toHaveProperty('promptTemplate');
+  });
+
+  it('writes nothing for an empty patch', async () => {
+    await setSettings({});
+    await flushWrites();
+    expect(sync.set).not.toHaveBeenCalled();
   });
 });
 

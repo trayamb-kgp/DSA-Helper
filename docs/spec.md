@@ -141,9 +141,9 @@ All messaging via `chrome.runtime.sendMessage` / `chrome.tabs.sendMessage` with 
 ```ts
 type Msg =
   | { type: 'EXTRACT_CONTEXT' }                                   // bg → platform CS
-  | { type: 'CONTEXT_RESULT'; context: ProblemContext }          // reply
+  | { type: 'CONTEXT_RESULT'; context: ProblemContext;
+      diagnostics?: string[] }                                    // reply (D044)
   | { type: 'RUN_ACTION'; action: ActionId; tabId?: number }      // popup/menu → bg
-  | { type: 'GET_CONTEXT_FOR_POPUP' }                             // popup → bg
   | { type: 'PROMPT_RESULT'; prompt: string | null }              // reply, popup copy (D041)
   | { type: 'CLAIM_PENDING_PROMPT' }                              // chatgpt CS → bg
   | { type: 'PENDING_PROMPT'; prompt: string | null }             // reply
@@ -201,6 +201,8 @@ type ActionId = 'youtube' | 'chatgpt' | 'copyPrompt';
    ├─ core/
    │   ├─ types.ts             # ProblemContext, Settings, HistoryEntry
    │   ├─ urls.ts              # problem-URL matching + the manifest's match patterns
+   │   ├─ diagnostics.ts       # field report + the redacted bug-report blob (D031)
+   │   ├─ theme.ts             # system / light / dark
    │   ├─ templates.ts         # render(), DEFAULT_YOUTUBE_TEMPLATE, DEFAULT_PROMPT
    │   ├─ prompt.ts            # §8 prompt assembly: tags, notes, truncation
    │   ├─ youtube.ts           # query building + the §7.1 degradation ladder
