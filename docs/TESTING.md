@@ -179,6 +179,37 @@ Manual, in a real Chrome:
 
 ---
 
+## 3e. Phase 6 acceptance — Codeforces, CodeChef, GeeksforGeeks
+
+Automated:
+
+- [x] **No adapter imports from another** ([D043](decisions.md#d043)), checked against the source
+- [x] Every URL form resolves: Codeforces problemset/contest/gym/submit, CodeChef practice and contest, GfG on both hosts — and no two adapters ever claim the same URL
+- [x] Codeforces `1352A` collapses to one identity from both of its paths ([D024](decisions.md#d024))
+- [x] Codeforces LaTeX arrives verbatim; the figure is named, not dropped; the `*NNNN` rating reads as the difficulty and stays out of the tags
+- [x] **A Russian statement passes through untouched** — no detection, no translation, no warning ([D026](decisions.md#d026))
+- [x] Codeforces problem pages return no code and record it as *expected*; a submit page warns, because an editor was expected there ([D014](decisions.md#d014))
+- [x] CodeChef uses its JSON `body` as the markdown it already is; the DOM path converts rendered HTML instead
+- [x] CodeChef's practice pattern is tried before its contest pattern, and the site's own sections are excluded
+- [x] **Every GfG CSS-module selector is prefix-matched**, asserted structurally so an exact hash cannot be introduced (architecture.md §6.3)
+- [x] GfG reports no problem number and falls back to the slug for a title
+- [x] Content-script bundle 27 KB with no React; `dist/` 298 KB against the 500 KB budget
+
+Manual, in a real Chrome. **The fixtures for these three are hand-built** ([todo.md](todo.md) #5), so this section is where they get checked against reality:
+
+- [ ] **GeeksforGeeks first.** Its hashed CSS-module class names are the single most likely thing in the project to be wrong. Open a practice problem and confirm the statement, difficulty and tags all read
+- [ ] **CodeChef practice** — confirm the page still ships a cached API response, and that the statement is the markdown body rather than the scraped DOM (the popup's Statement size is the tell: the two differ)
+- [ ] **CodeChef contest** — the DOM fallback path, on a live contest problem
+- [ ] **Codeforces problemset** — statement, samples, rating; check a **maths-heavy** problem and confirm the `$$$...$$$` reaches the prompt untouched
+- [ ] **Codeforces contest and gym** — both forms resolve, and `1352A` from `/problemset/` and from `/contest/` show as the same problem
+- [ ] **A Russian problem** — the statement arrives in Russian, with no warning about it
+- [ ] **A figure-heavy Codeforces problem** — each image becomes `[Figure: … — not included]` and no image URL is embedded
+- [ ] **No code on a Codeforces problem page** — the popup says code was not captured, and nothing reads as an error
+- [ ] **A Codeforces submit page** — code *is* captured there
+- [ ] Then update the fixtures from what you saw, and confirm the suite still passes unchanged
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.

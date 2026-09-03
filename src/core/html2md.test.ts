@@ -112,6 +112,14 @@ describe('non-breaking spaces', () => {
     expect(md('<p>a&nbsp;b</p>')).toBe('a b');
   });
 
+  it('does not leave a stray space before a standalone image', () => {
+    // How every Codeforces figure arrives: an <img> on its own source line,
+    // preceded by the newline and indentation between two block elements.
+    const out = md('<div><p>Before.</p>\n        <img alt="A diagram">\n</div>');
+    expect(out).toContain('\n[Figure: A diagram');
+    expect(out).not.toContain('\n [Figure:');
+  });
+
   it('leaves no whitespace-only lines between blocks', () => {
     // The newlines and indentation between two block elements become a text
     // node, and a line holding just that reads as blank but is not — it

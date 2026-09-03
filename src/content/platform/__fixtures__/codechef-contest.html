@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+  CodeChef contest problem, trimmed. Ships NO cached API response, which is the
+  point: the DOM fallback has to carry the whole extraction, and the statement
+  arrives as rendered HTML rather than as markdown source.
+
+  The statement container also uses a hashed CSS-module class rather than the
+  stable `#problem-statement` id, so the selector list has to descend to a
+  fallback -- which should show up in diagnostics as an early warning, not as a
+  failure.
+
+  Account markup (username, contest timer, ranking) scrubbed.
+-->
+<html lang="en">
+<head>
+  <title>Chef and Subarrays | CodeChef</title>
+</head>
+<body>
+  <div id="__next">
+    <h1 class="problem-name_title__x9K2p">Chef and Subarrays</h1>
+    <div class="_rating__2bQ7f">2100</div>
+
+    <div class="_problemStatement__aB3xY">
+      <p>Chef has an array <em>A</em> of <em>N</em> integers. Count the subarrays whose sum is divisible by <em>K</em>.</p>
+      <p><strong>Example 1:</strong></p>
+      <pre>Input:
+5 3
+1 2 3 4 1
+Output:
+4</pre>
+      <p><strong>Constraints:</strong></p>
+      <ul>
+        <li>1 &le; N &le; 10<sup>5</sup></li>
+        <li>1 &le; K &le; 10<sup>9</sup></li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

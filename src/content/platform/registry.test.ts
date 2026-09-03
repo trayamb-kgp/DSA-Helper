@@ -7,7 +7,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { resolveAdapter } from './registry';
+import { ADAPTERS, resolveAdapter } from './registry';
+import { codechef } from './codechef';
+import { codeforces } from './codeforces';
+import { geeksforgeeks } from './geeksforgeeks';
 import { leetcode } from './leetcode';
 
 const SUPPORTED = [
@@ -32,12 +35,29 @@ const UNSUPPORTED = [
   'https://leetcode.com/discuss/interview-question/',
   // Out of scope for v1 (spec.md section 3).
   'https://leetcode.cn/problems/two-sum/',
-  // Phase 6 platforms -- unclaimed until their adapters land.
-  'https://codeforces.com/problemset/problem/1352/A',
-  'https://www.codechef.com/problems/FLOW001',
-  'https://www.geeksforgeeks.org/problems/some-slug/1',
+  // Right hosts, wrong pages.
+  'https://codeforces.com/',
+  'https://codeforces.com/problemset',
+  'https://codeforces.com/contest/1352',
+  'https://www.codechef.com/',
+  'https://www.codechef.com/ide',
+  'https://www.geeksforgeeks.org/',
+  // A GfG article, which is out of scope (spec.md section 3).
+  'https://www.geeksforgeeks.org/binary-search-algorithm/',
   // Not ours at all.
   'https://example.com/problems/two-sum/',
+];
+
+/** One entry per platform, so a missing adapter shows up as a bad claim. */
+const CLAIMED: ReadonlyArray<readonly [string, unknown]> = [
+  ['https://codeforces.com/problemset/problem/1352/A', codeforces],
+  ['https://codeforces.com/contest/1352/problem/A', codeforces],
+  ['https://codeforces.com/gym/104123/problem/B', codeforces],
+  ['https://codeforces.com/problemset/submit/1352/A', codeforces],
+  ['https://www.codechef.com/problems/FLOW001', codechef],
+  ['https://www.codechef.com/START100/problems/FLOW001', codechef],
+  ['https://www.geeksforgeeks.org/problems/some-slug/1', geeksforgeeks],
+  ['https://practice.geeksforgeeks.org/problems/some-slug/1', geeksforgeeks],
 ];
 
 describe('resolveAdapter', () => {
@@ -47,6 +67,26 @@ describe('resolveAdapter', () => {
 
   it.each(UNSUPPORTED)('leaves %s unclaimed', (url) => {
     expect(resolveAdapter(url)).toBeNull();
+  });
+
+  it.each(CLAIMED)('gives %s to the right adapter', (url, adapter) => {
+    expect(resolveAdapter(url as string)).toBe(adapter);
+  });
+
+  it('has an adapter for every platform (D001)', () => {
+    expect(ADAPTERS.map((a) => a.platform).sort()).toEqual([
+      'codechef',
+      'codeforces',
+      'geeksforgeeks',
+      'leetcode',
+    ]);
+  });
+
+  it('never lets two adapters claim the same URL', () => {
+    for (const [url] of CLAIMED) {
+      const claimants = ADAPTERS.filter((a) => a.matches(new URL(url as string)));
+      expect(claimants).toHaveLength(1);
+    }
   });
 
   it('accepts a URL object as readily as a string', () => {

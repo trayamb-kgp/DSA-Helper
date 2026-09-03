@@ -55,7 +55,7 @@ Items 1 and 3 only bind if you publish. See [spec.md](spec.md) §14.
 
 Capture early — they're the only thing that detects a site redesign before users do. [architecture.md](architecture.md) §12.
 
-**Notes:** _M2 shipped three LeetCode fixtures in `src/content/platform/__fixtures__/`, but they are **hand-built** to the page shapes documented in [spec.md](spec.md) §6.3 and §6.6 — a contest page and a Premium page both need a logged-in account to reach. They exercise every code path and the suite passes against them, but they cannot detect a redesign, which is the main thing a fixture is for. Replacing them with real captures (trimmed to the statement and editor regions, account markup scrubbed, header comment saying what the fixture is for) should leave the tests passing unchanged — and if it doesn't, that difference is exactly the finding._
+**Notes:** _M2 shipped three LeetCode fixtures and M6 five more (Codeforces problemset + contest, CodeChef practice + contest, GfG practice) in `src/content/platform/__fixtures__/`. All eight are **hand-built** to the page shapes documented in [spec.md](spec.md) §6.3 and §6.6 — a contest page and a Premium page both need a logged-in account to reach. They exercise every code path and the suite passes against them, but they cannot detect a redesign, which is the main thing a fixture is for. Replacing them with real captures (trimmed to the statement and editor regions, account markup scrubbed, header comment saying what the fixture is for) should leave the tests passing unchanged — and if it doesn't, that difference is exactly the finding. Priority order: **GeeksforGeeks first** (its hashed CSS-module class names are the most likely thing in the project to be wrong), then CodeChef, then LeetCode contest/Premium. Codeforces is server-rendered and stable, so its two are the least urgent._
 
 ---
 
@@ -86,13 +86,13 @@ Capture early — they're the only thing that detects a site redesign before use
 - [x] **M3** YouTube action — all three trigger surfaces
 - [x] **M4** Prompt builder + copy-to-clipboard
 - [x] **M5** ChatGPT injection — banner + clipboard fallback
-- [ ] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
+- [x] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
 - [ ] **M7** Options page + history
 - [ ] **M8** Polish — README statements, icons, ready to package
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M6 done 2026-09-03 — 454 tests, all four platforms, content script 27 KB, dist 298 KB. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 
@@ -139,7 +139,9 @@ Everything below is automated-green but needs a real browser to confirm.
 
 **Phase 5 — ChatGPT injection** ([TESTING.md](TESTING.md) §3d): the prompt lands in the composer **unsent** with the banner; **break the composer selector on purpose** and confirm the clipboard fallback fires; opening ChatGPT by hand inserts nothing.
 
-Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a–§3d.
+**Phase 6 — the other three platforms** ([TESTING.md](TESTING.md) §3e): one practice and one contest URL per platform (GfG: practice only); **confirm the GfG hashed class names still match**, which is the single most likely thing to be wrong.
+
+Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a–§3e.
 
 **Notes:** _—_
 

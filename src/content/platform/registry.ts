@@ -10,13 +10,21 @@
  */
 
 import type { PlatformAdapter } from './adapter';
+import { codechef } from './codechef';
+import { codeforces } from './codeforces';
+import { geeksforgeeks } from './geeksforgeeks';
 import { leetcode } from './leetcode';
 
 /**
- * Phase 6 adds Codeforces, CodeChef and GeeksforGeeks. Until then their URLs
- * resolve to null, which the content script reports as an unsupported page.
+ * All four platforms (D001). Order is not significant: no two adapters claim
+ * the same host, and `matches` is asked in turn until one says yes.
  */
-export const ADAPTERS: readonly PlatformAdapter[] = [leetcode];
+export const ADAPTERS: readonly PlatformAdapter[] = [
+  leetcode,
+  codeforces,
+  codechef,
+  geeksforgeeks,
+];
 
 export function resolveAdapter(url: URL | string): PlatformAdapter | null {
   let parsed: URL;

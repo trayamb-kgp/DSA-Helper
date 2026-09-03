@@ -1,0 +1,70 @@
+<!doctype html>
+<!--
+  Codeforces problemset problem, trimmed to the statement region and the tag
+  sidebar. Server-rendered, so this is close to what the real page ships.
+
+  Deliberately maths-heavy and diagram-bearing, because those are the two
+  things D026 rules on: the LaTeX must reach the prompt verbatim, and the
+  figure must be named rather than dropped. It also has no editor anywhere,
+  which is the normal state of a Codeforces problem page (D014).
+
+  Account markup (handle, rating, sidebar boxes) scrubbed.
+-->
+<html lang="en">
+<head>
+  <title>Problem - 1352A - Codeforces</title>
+</head>
+<body>
+  <div class="problemindexholder">
+    <div class="problem-statement">
+      <div class="header">
+        <div class="title">A. Sum of Round Numbers</div>
+        <div class="time-limit"><div class="property-title">time limit per test</div>1 second</div>
+        <div class="memory-limit"><div class="property-title">memory limit per test</div>256 megabytes</div>
+      </div>
+
+      <div>
+        <p>A positive (strictly greater than zero) integer is called round if it is of the form $$$d00\ldots0$$$. In other words, a positive integer is round if all its digits except the leftmost are equal to zero.</p>
+        <p>For example, $$$4000$$$, $$$1$$$, $$$9$$$, $$$800$$$ are round numbers, while $$$110$$$ and $$$707$$$ are not.</p>
+        <p>You are given a positive integer $$$n$$$ ($$$1 \le n \le 10^4$$$). Represent the number $$$n$$$ as a sum of round numbers using the minimum number of summands.</p>
+        <img alt="A number split into its round summands" src="/predownloaded/example.png" />
+      </div>
+
+      <div class="input-specification">
+        <div class="section-title">Input</div>
+        <p>The first line contains an integer $$$t$$$ ($$$1 \le t \le 10^4$$$) — the number of test cases.</p>
+      </div>
+
+      <div class="output-specification">
+        <div class="section-title">Output</div>
+        <p>Print $$$t$$$ answers, one per test case.</p>
+      </div>
+
+      <div class="sample-tests">
+        <div class="section-title">Examples</div>
+        <div class="sample-test">
+          <div class="input"><div class="title">Input</div><pre>5
+5009
+7
+9876</pre></div>
+          <div class="output"><div class="title">Output</div><pre>2
+5000 9
+1
+7</pre></div>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="section-title">Note</div>
+        <p>In the first test case $$$5009 = 5000 + 9$$$.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="roundbox sidebox">
+    <span class="tag-box">greedy</span>
+    <span class="tag-box">math</span>
+    <span class="tag-box">*800</span>
+  </div>
+</body>
+</html>

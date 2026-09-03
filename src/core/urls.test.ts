@@ -54,10 +54,28 @@ describe('platformForUrl', () => {
     expect(platformForUrl(url)).toBeNull();
   });
 
-  it('leaves the phase-6 platforms unclaimed for now', () => {
-    expect(platformForUrl('https://codeforces.com/problemset/problem/1352/A')).toBeNull();
-    expect(platformForUrl('https://www.codechef.com/problems/FLOW001')).toBeNull();
-    expect(platformForUrl('https://www.geeksforgeeks.org/problems/x/1')).toBeNull();
+  it('recognises Codeforces in all three of its forms, and its submit pages', () => {
+    expect(platformForUrl('https://codeforces.com/problemset/problem/1352/A')).toBe('codeforces');
+    expect(platformForUrl('https://codeforces.com/contest/1352/problem/A')).toBe('codeforces');
+    expect(platformForUrl('https://codeforces.com/gym/104123/problem/B2')).toBe('codeforces');
+    expect(platformForUrl('https://codeforces.com/problemset/submit/1352/A')).toBe('codeforces');
+    expect(platformForUrl('https://codeforces.com/contest/1352')).toBeNull();
+  });
+
+  it('recognises CodeChef practice and contest problems, but not its own sections', () => {
+    expect(platformForUrl('https://www.codechef.com/problems/FLOW001')).toBe('codechef');
+    expect(platformForUrl('https://www.codechef.com/START100/problems/FLOW001')).toBe('codechef');
+    // An arbitrary first segment is what a contest looks like, so the site's
+    // own sections have to be excluded by name.
+    expect(platformForUrl('https://www.codechef.com/ide')).toBeNull();
+    expect(platformForUrl('https://www.codechef.com/users/someone')).toBeNull();
+  });
+
+  it('recognises GfG practice problems on both hosts, but not articles', () => {
+    expect(platformForUrl('https://www.geeksforgeeks.org/problems/x/1')).toBe('geeksforgeeks');
+    expect(platformForUrl('https://practice.geeksforgeeks.org/problems/x/1')).toBe('geeksforgeeks');
+    // Articles are out of scope for v1 (spec.md section 3).
+    expect(platformForUrl('https://www.geeksforgeeks.org/binary-search-algorithm/')).toBeNull();
   });
 });
 

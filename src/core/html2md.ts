@@ -412,7 +412,13 @@ function normalize(md: string, ctx: Ctx, opts: { restore: boolean }): string {
       // the run-collapsing below only sees `\n\n\n`, not `\n \n`. The source
       // of these is the whitespace between two block elements, which every
       // one of these sites formats its markup with.
-      return rest ? indent + rest : '';
+      if (!rest) return '';
+      // A *single* leading space is never meaningful here either: list nesting
+      // is indented by two, and fenced content is protected from this pass
+      // entirely. One space is the same inter-element whitespace, this time
+      // followed by something -- a standalone `<img>`, say, which is how every
+      // Codeforces figure arrives.
+      return (indent === ' ' ? '' : indent) + rest;
     })
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')

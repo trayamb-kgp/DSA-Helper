@@ -184,6 +184,7 @@ type ActionId = 'youtube' | 'chatgpt' | 'copyPrompt';
    │   │   ├─ index.ts         # entry: route to adapter, listen for EXTRACT_CONTEXT
    │   │   ├─ adapter.ts       # PlatformAdapter interface + per-field guards
    │   │   ├─ registry.ts      # resolveAdapter(url) — kept apart to avoid a cycle
+   │   │   ├─ shared.ts        # the code ladder, languages, splitter (D043)
    │   │   ├─ bridgeClient.ts  # ISOLATED half of the editor bridge
    │   │   ├─ clipboard.ts     # clipboard write, injected or run in the popup
    │   │   ├─ leetcode.ts

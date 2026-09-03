@@ -78,16 +78,62 @@ export function parseLeetCodePath(url: URL): LeetCodePath | null {
 
 // --- Cross-platform ---------------------------------------------------------
 
+const CODEFORCES_PATHS = [
+  /^\/problemset\/problem\/\d+\/[A-Za-z]\d?(?:\/.*)?$/,
+  /^\/contest\/\d+\/problem\/[A-Za-z]\d?(?:\/.*)?$/,
+  /^\/gym\/\d+\/problem\/[A-Za-z]\d?(?:\/.*)?$/,
+  /^\/(?:problemset\/submit|contest\/\d+\/submit|gym\/\d+\/submit)(?:\/.*)?$/,
+];
+
+const CODECHEF_PRACTICE = /^\/problems\/[A-Za-z0-9_]+(?:\/.*)?$/;
+const CODECHEF_CONTEST = /^\/([A-Za-z0-9_-]+)\/problems\/[A-Za-z0-9_]+(?:\/.*)?$/;
+const CODECHEF_NOT_CONTESTS = new Set([
+  'api',
+  'users',
+  'submit',
+  'ide',
+  'ranking',
+  'certification',
+]);
+
+const GFG_HOSTS = new Set([
+  'www.geeksforgeeks.org',
+  'geeksforgeeks.org',
+  'practice.geeksforgeeks.org',
+]);
+const GFG_PROBLEM = /^\/problems\/[^/]+(?:\/.*)?$/;
+
 /**
  * Which platform owns this URL, if any.
  *
- * Phase 6 adds the other three. Until then their URLs answer null, which every
- * caller already treats as "unsupported page".
+ * Deliberately a second, simpler implementation of what each adapter's
+ * `matches` does. The service worker runs this on every tab update and must
+ * not import an adapter to do it -- an adapter drags in `html2md`, and this
+ * sits inside a 20 ms wake budget (D039). The adapters remain the authority on
+ * *extraction*; this only answers "is it worth waking up for".
  */
 export function platformForUrl(url: URL | string): Platform | null {
   const parsed = parseUrl(url);
   if (!parsed) return null;
+  const { hostname, pathname } = parsed;
+
   if (parseLeetCodePath(parsed)) return 'leetcode';
+
+  if (hostname === 'codeforces.com' || hostname === 'www.codeforces.com') {
+    return CODEFORCES_PATHS.some((pattern) => pattern.test(pathname)) ? 'codeforces' : null;
+  }
+
+  if (hostname === 'www.codechef.com' || hostname === 'codechef.com') {
+    if (CODECHEF_PRACTICE.test(pathname)) return 'codechef';
+    const contest = CODECHEF_CONTEST.exec(pathname)?.[1];
+    if (contest && !CODECHEF_NOT_CONTESTS.has(contest.toLowerCase())) return 'codechef';
+    return null;
+  }
+
+  if (GFG_HOSTS.has(hostname)) {
+    return GFG_PROBLEM.test(pathname) ? 'geeksforgeeks' : null;
+  }
+
   return null;
 }
 

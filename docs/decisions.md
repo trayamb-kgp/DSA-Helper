@@ -76,6 +76,7 @@
 | [D040](#d040) | Quoted problem text is tagged, not fenced | Accepted | 2026-09-03 |
 | [D041](#d041) | The clipboard write happens in whichever surface has focus | Accepted | 2026-09-03 |
 | [D042](#d042) | `openInNewTab` governs the YouTube result only | Accepted | 2026-09-03 |
+| [D043](#d043) | Adapter-common code lives in `shared.ts`, not in an adapter | Accepted | 2026-09-03 |
 
 ---
 
@@ -648,6 +649,21 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** A user who turns the setting off still gets a new ChatGPT tab, which looks inconsistent until the options page explains it — so the options page must ([todo.md](todo.md) #12). `focusNewTab: false` remains meaningful for ChatGPT, and is the more interesting case: the tab loads in the background, the prompt still lands in the composer, and the review banner is waiting when the user switches to it.
 
 **Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §5, §7.1, §7.2
+
+<a id="d043"></a>
+### D043 — Adapter-common code lives in `shared.ts`, not in an adapter
+
+**Decision.** The four-layer code ladder, the language table, the heading-based statement splitter and the small DOM helpers moved out of the LeetCode adapter into `content/platform/shared.ts`. **No adapter imports from another.** What stays in an adapter is what only that site knows: its selectors, its JSON shape, its paywall markers, its URL grammar.
+
+**Context.** Phase 2 built all of that inside `leetcode.ts` because there was one adapter. Phase 6 added three more, and its exit criterion is that no adapter imports from another.
+
+**Reasoning.** The alternative — Codeforces importing `runCodeLadder` from `leetcode.ts` — makes a LeetCode edit able to break Codeforces, which is exactly the blast-radius coupling [architecture.md](architecture.md) §8.3 is built to prevent. The line between the two files is drawn on *knowledge*, not on convenience: `shared.ts` may not contain a single site's name, and an adapter may not contain anything a second site would also need. That test is what keeps the split from eroding into a junk drawer.
+
+**Alternatives.** A base-class or mixin per adapter (rejected: inheritance for four objects that share no state); duplicate the ladder four times (rejected: a capture bug would then need fixing four times, and would be fixed in three); re-export the shared pieces from `leetcode.ts` so the tests need no change (rejected: that *is* an adapter importing from another, wearing a hat).
+
+**Consequences.** One more module in the extraction subsystem, and its tests live in `shared.test.ts` rather than being reached through one platform's fixtures — which is what keeps it honest about being platform-neutral. The Codeforces adapter is the standing proof the split is real: it does **not** use the shared splitter, because its statements are structured in the DOM and are frequently in Russian, so matching English heading text would work on roughly half the site.
+
+**Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §6.1, §8.3, [spec.md](spec.md) §4.2
 
 ---
 

@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–5 complete (manual Chrome checks from phases 0, 2–5 outstanding). Phase 6 is next.
+**Status:** phases 0–6 complete (manual Chrome checks from phases 0, 2–6 outstanding). Phase 7 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -462,34 +462,68 @@ Verified automatically — `npm run typecheck`, `npm test` (383 tests, 37 new) a
 
 ### Tasks
 
-- [ ] **Codeforces** — problemset, contest and gym URL patterns; `problemKey` = contestId + index
-- [ ] **Codeforces** — `.problem-statement` root; title, limits, `.sample-tests`, sidebar tags, rating from the `*NNNN` tag
-- [ ] **Codeforces** — LaTeX preserved verbatim; verify against a maths-heavy problem ([D026](../decisions.md))
-- [ ] **Codeforces** — expect `codeSource: 'none'` on problem pages; confirm this reads as normal, not as an error ([D014](../decisions.md))
-- [ ] **Codeforces** — submit-page code capture where the editor exists
-- [ ] **CodeChef** — practice + contest patterns; problem code from the URL; embedded JSON first, `#problem-statement` fallback; editor capture
-- [ ] **GeeksforGeeks** — both hosts; slug as identifier since there is no number ([D024](../decisions.md))
-- [ ] **GeeksforGeeks** — hashed CSS-module classes matched **by prefix only**, never exact ([architecture.md](../architecture.md) §6.3)
-- [ ] Fixtures for each platform and page kind
-- [ ] Verify figure placeholders on a diagram-heavy problem
-- [ ] Verify a Russian-language Codeforces statement passes through untouched ([D026](../decisions.md))
+- [x] **Codeforces** — problemset, contest and gym URL patterns; `problemKey` = contestId + index
+- [x] **Codeforces** — `.problem-statement` root; title, limits, `.sample-tests`, sidebar tags, rating from the `*NNNN` tag
+- [x] **Codeforces** — LaTeX preserved verbatim; verify against a maths-heavy problem ([D026](../decisions.md))
+- [x] **Codeforces** — expect `codeSource: 'none'` on problem pages; confirm this reads as normal, not as an error ([D014](../decisions.md))
+- [x] **Codeforces** — submit-page code capture where the editor exists
+- [x] **CodeChef** — practice + contest patterns; problem code from the URL; embedded JSON first, `#problem-statement` fallback; editor capture
+- [x] **GeeksforGeeks** — both hosts; slug as identifier since there is no number ([D024](../decisions.md))
+- [x] **GeeksforGeeks** — hashed CSS-module classes matched **by prefix only**, never exact ([architecture.md](../architecture.md) §6.3)
+- [x] Fixtures for each platform and page kind
+- [x] Verify figure placeholders on a diagram-heavy problem
+- [x] Verify a Russian-language Codeforces statement passes through untouched ([D026](../decisions.md))
 
 ### Decisions
 
-_None yet._
+One went into [decisions.md](../decisions.md):
+
+- **[D043](../decisions.md#d043) — adapter-common code lives in `shared.ts`, not in an adapter.** The code ladder, the language table and the heading splitter were all inside `leetcode.ts`, because phase 2 had one adapter. The exit criterion here is that no adapter imports from another, so they moved. The line is drawn on *knowledge*: `shared.ts` may not name a single site, and an adapter may not hold anything a second site would also need.
+
+Smaller calls, recorded here only:
+
+- **The `PlatformAdapter` interface did not need changing.** The plan warned that a platform might resist it. None did — including Codeforces, whose page has no editor at all and whose statement is structured rather than heading-delimited. `isReady` and `canonicalUrl` (added in phase 2 as [D037](../decisions.md#d037)) turned out to carry the awkward cases: a Codeforces submit page is "ready" immediately because it will never have a statement.
+- **Codeforces does not use the shared splitter.** Its statements are marked up structurally (`.problem-statement > div`, `.input-specification`, `.sample-tests`, `.note`) and are frequently in Russian, so matching the English words "Example" and "Constraints" would work on roughly half the site. It reads the DOM structure instead, which has no language in it. This is the standing proof that D043's split is real rather than a junk drawer.
+- **Codeforces' time and memory limits are the constraints.** On this site they are usually the only bounds stated outside the prose, and a complexity answer hangs on them ([D022](../decisions.md#d022) already refuses to truncate constraints).
+- **The `*NNNN` sidebar tag is the difficulty, and is kept out of the tags.** Codeforces has no Easy/Medium/Hard; the rating is the closest equivalent spec.md §5 allows. A live contest problem has no rating yet, which is a gap rather than a failure.
+- **CodeChef's `body` field is markdown already**, not HTML — it authors in markdown and its API returns the source. Converting it would only lose fidelity, so the JSON path uses it directly and only the DOM path goes through `html2md`.
+- **CodeChef's practice pattern is tried before its contest pattern.** A contest problem lives under an arbitrary first segment, so `/problems/FLOW001` would otherwise parse as a contest named "problems". The site's own sections (`/ide`, `/users`, …) are excluded by name for the same reason.
+- **GfG's slug is its identity and, in the last resort, its title.** There is no number anywhere ([D024](../decisions.md#d024)), so `number` is null and the YouTube template collapses that variable away. The trailing numeric segment in the URL is GfG's page id, not part of the problem.
+- **`core/urls.ts` grew a second, simpler matcher for the three new platforms.** It is deliberately not the adapters' `matches`: the worker runs it on every tab update inside a 20 ms budget and must not import an adapter to do it ([D039](../decisions.md#d039)). A test asserts both agree on every claimed URL.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification.
+
+Verified automatically — `npm run typecheck`, `npm test` (454 tests, 71 new) and `npm run build` all clean:
+
+- **No adapter imports from another**, checked directly against the source
+- All four platforms resolve, on every URL form each one has: Codeforces problemset/contest/gym/submit, CodeChef practice and contest, GfG on both hosts — and a test asserts no two adapters ever claim the same URL
+- Codeforces: LaTeX arrives verbatim (`$$$1 \le n \le 10^4$$$`), the figure is named rather than dropped, the rating reads as the difficulty and stays out of the tags
+- **A Russian statement passes through untouched** — Cyrillic byte-for-byte, no warning about the language, and the structural splitter still works where a heading-text one could not ([D026](../decisions.md#d026))
+- Codeforces problem pages return no code and say that is *expected*, not a failure ([D014](../decisions.md#d014)); a submit page warns, because an editor was expected there
+- CodeChef: the JSON path uses the markdown body directly; the DOM path converts rendered HTML and records the fallback selector it reached for
+- GfG: **every CSS-module selector is prefix-matched**, asserted structurally so an exact hash cannot be introduced, and the fixture's hashes are deliberately not the real ones
+- Content-script bundle 27 KB with no React; `dist/` 298 KB against the 500 KB budget
+
+**Read a Codeforces prompt end to end**, as in phase 4 — and it found one more `html2md` blemish: a standalone `<img>` arrived with a stray leading space, from the whitespace between block elements. Every Codeforces figure would have carried it. Fixed, with a test.
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3e:**
+
+1. **Capture real fixtures for all three platforms** ([todo.md](../todo.md) #5). As in phase 2, these are hand-built to the shapes documented in [spec.md](../spec.md) §3 and §6.3. Codeforces is the one most likely to be right, being server-rendered and stable; CodeChef and GfG are SPAs and their markup is a guess.
+2. Verify one practice and one contest URL per platform in a real browser (GfG: practice only).
+3. Confirm the GfG hashed class names still match — that is the single most likely thing in this phase to be wrong.
 
 ### Additional Notes
 
-- Codeforces is the reassuring one: server-rendered and stable. CodeChef and GfG are SPAs and will be the fragile pair.
-- If a platform's structure resists the `PlatformAdapter` interface, change the interface deliberately and record why — don't special-case inside one adapter.
+- Codeforces is the reassuring one: server-rendered and stable. CodeChef and GfG are SPAs and will be the fragile pair. That held — the two SPA adapters are the ones whose selector lists reach for prefix matches and fallbacks.
+- If a platform's structure resists the `PlatformAdapter` interface, change the interface deliberately and record why — don't special-case inside one adapter. None did; the interface phase 2 left is sufficient for all four.
+- **`shared.ts` has one rule**: it may not name a single site. When phase 7's diagnostics panel or a fifth platform tempts something site-specific into it, that is the test to apply.
+- Codeforces `1352A` is reachable at two paths and is one problem ([D024](../decisions.md#d024)) — the case worth re-testing by hand once history exists in phase 7, since it is the reason D024 exists.
 
 ---
 

@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  CodeChef practice problem, trimmed. Ships the cached API response, so this
+  fixture exercises the embedded-JSON path.
+
+  Note what the JSON `body` field holds: markdown, not HTML. CodeChef authors
+  in markdown and its API returns the source, so the adapter uses it directly
+  rather than converting anything. The DOM below carries the rendered version
+  of the same statement, which the contest fixture falls back to instead.
+
+  It also carries an Ace editor with three visible lines, so the code ladder
+  has something to reach on its third layer.
+
+  Account markup (username, submission history, discussion) scrubbed.
+-->
+<html lang="en">
+<head>
+  <title>Add Two Numbers Practice Problem in Coding | CodeChef</title>
+</head>
+<body>
+  <div id="__next">
+    <h1 id="problem-code">FLOW001</h1>
+    <div class="difficulty-chip">1000</div>
+
+    <div id="problem-statement">
+      <p>Write a program that takes two integers as input and outputs their sum.</p>
+      <h3>Example 1:</h3>
+      <pre>Input:
+2 3
+Output:
+5</pre>
+      <h3>Constraints:</h3>
+      <ul>
+        <li>1 &le; T &le; 10<sup>4</sup></li>
+        <li>-10<sup>9</sup> &le; A, B &le; 10<sup>9</sup></li>
+      </ul>
+    </div>
+
+    <div class="problem-tags">
+      <a href="/tags/problems/basic-programming">basic-programming</a>
+      <a href="/tags/problems/implementation">implementation</a>
+    </div>
+
+    <div class="ace_editor">
+      <div class="ace_line">#include &lt;iostream&gt;</div>
+      <div class="ace_line">int main() {</div>
+      <div class="ace_line">  return 0;</div>
+    </div>
+  </div>
+
+  <script>window.__INITIAL_STATE__ = {"problem":{"problem_code":"FLOW001","problem_name":"Add Two Numbers","difficulty_rating":1000,"tags":[{"tag_name":"basic-programming"},{"tag_name":"implementation"},{"tag_name":"beginner"}],"body":"Write a program that takes two integers as input and outputs their sum.\n\n### Example 1:\n\n```\nInput:\n2 3\nOutput:\n5\n```\n\n### Constraints:\n\n- $1 \\le T \\le 10^4$\n- $-10^9 \\le A, B \\le 10^9$\n"}};</script>
+</body>
+</html>
