@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ActionId, Msg, ProblemContext, Settings } from '../core/types';
 import { getSettings } from '../core/storage';
 import { buildQuery, varsFromContext } from '../core/youtube';
+import { copyInPage } from '../content/platform/clipboard';
 
 /**
  * The popup, as far as phase 3 takes it.
@@ -53,6 +54,31 @@ function run(action: ActionId, tabId: number): void {
   window.close();
 }
 
+/**
+ * Copy is the one action the popup finishes itself.
+ *
+ * The worker still builds the prompt -- one builder, one result -- but the
+ * write has to happen here: while the popup is open the page is not the
+ * focused document, and `writeText` refuses there (D040). The popup holds the
+ * click's user gesture, so it is the surface that can.
+ */
+async function copyPrompt(tabId: number): Promise<'copied' | 'failed'> {
+  const message: Msg = { type: 'RUN_ACTION', action: 'copyPrompt', tabId };
+  const reply: unknown = await chrome.runtime.sendMessage(message).catch(() => null);
+
+  if (
+    typeof reply !== 'object' ||
+    reply === null ||
+    (reply as Msg).type !== 'PROMPT_RESULT'
+  ) {
+    return 'failed';
+  }
+
+  const { prompt } = reply as Extract<Msg, { type: 'PROMPT_RESULT' }>;
+  if (!prompt) return 'failed';
+  return (await copyInPage(prompt)) ? 'copied' : 'failed';
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="row">
@@ -77,6 +103,7 @@ function describeCode(context: ProblemContext): string {
 
 export function Popup() {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [copied, setCopied] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   useEffect(() => {
     let live = true;
@@ -154,6 +181,17 @@ export function Popup() {
       </p>
       <button type="button" className="primary" onClick={() => run('youtube', tabId)}>
         Search YouTube
+      </button>
+      <button
+        type="button"
+        className="secondary"
+        onClick={() => {
+          void copyPrompt(tabId).then(setCopied);
+        }}
+      >
+        {copied === 'idle' ? 'Copy prompt' : null}
+        {copied === 'copied' ? 'Copied to clipboard' : null}
+        {copied === 'failed' ? "Couldn't copy" : null}
       </button>
 
       {context.warnings.length > 0 && (

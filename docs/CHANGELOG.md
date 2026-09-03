@@ -10,6 +10,8 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 ### Added
 
+- **Copy prompt** (2026-09-03) — the review request itself, on your clipboard from the popup, the right-click menu or a shortcut you bind. It carries the problem, the examples, the constraints, your code and the review instructions, and it is honest about what it lacks: a section that couldn't be read says so, a Premium problem says the statement is locked, and a solution that couldn't be captured leaves a note to paste it in rather than an empty code block. Your code is never cut to fit the size cap — the statement is shortened first, then the examples, and the prompt goes over the cap before it touches what you wrote. Works without ChatGPT being involved at all.
+
 - **Search YouTube** (2026-09-03) — the first working action. From a LeetCode problem, `Alt+Shift+Y`, the popup button and the right-click menu all open a YouTube search built from your own template; the popup shows the exact search string first, so nothing happens that you did not see coming. The search still works when the problem can't be read — it falls back to the page title and then to the URL — and firing it somewhere unsupported tells you so instead of doing nothing. The toolbar icon marks pages the extension recognises.
 
 - **LeetCode extraction** (2026-09-03) — the extension can now read a LeetCode problem page: title, number, difficulty, tags, and the statement split into problem, examples and constraints, plus your in-progress code from whichever of four sources has it — the site's own saved buffer, the editor's model, the visible lines on the page, or your current text selection. Where the code came from is recorded and shown, so you can judge a capture before sending it. Practice and contest problems both work, and a Premium problem reports itself as locked rather than as a failure. The popup shows what was read; the actions arrive in the next phase.
@@ -23,5 +25,6 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 - Maths in problem statements is carried through verbatim, and figures that cannot travel in a text prompt are named rather than dropped ([D026](decisions.md), [D035](decisions.md)).
 - Exponents and indices survive the conversion: `5 * 10^4` in a constraint stays `5 * 10^4` rather than becoming `5 * 104` ([D026](decisions.md)).
+- Text quoted from a problem page is wrapped in labelled tags in the prompt, so the model reads it as reference material rather than as instructions ([D040](decisions.md)). The extension never sends a prompt for you — you read it first ([D003](decisions.md)).
 - Nothing is published yet. The first Web Store release will be `0.1.0` and must go out as a staged percentage rollout ([D030](decisions.md)).
 - Three items block publishing: the privacy policy contact address, its effective date, and the licence. See [todo.md](todo.md).

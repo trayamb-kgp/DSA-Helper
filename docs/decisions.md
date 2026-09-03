@@ -73,6 +73,8 @@
 | [D037](#d037) | Adapters are handed the page, they never reach for it | Accepted | 2026-09-03 |
 | [D038](#d038) | Stored buffers are chosen by open language, not recency | Accepted | 2026-09-03 |
 | [D039](#d039) | Page detection lives in the service worker, not the page | Accepted | 2026-09-03 |
+| [D040](#d040) | Quoted problem text is tagged, not fenced | Accepted | 2026-09-03 |
+| [D041](#d041) | The clipboard write happens in whichever surface has focus | Accepted | 2026-09-03 |
 
 ---
 
@@ -600,6 +602,36 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Alternatives.** Keep the observer for the title and drop only the history patching (rejected: the observer then earns its cost on nothing the worker doesn't already know); request `webNavigation` (rejected: a new permission on the install dialog for something `tabs` already provides, against [D021](#d021)'s posture); patch history from the MAIN world (rejected: contradicts D020 outright).
 
 **Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §6.1, [architecture.md](architecture.md) §7, [D020](#d020)
+
+<a id="d040"></a>
+### D040 — Quoted problem text is tagged, not fenced
+
+**Decision.** Extracted statement, examples and constraints are wrapped in named tags — `<problem_statement>`, `<examples>`, `<constraints>` — and the default prompt states what they mean. Any occurrence of those closing tags inside the extracted text is entity-escaped. [spec.md](spec.md) §8's default template is amended to carry the disclosure line.
+
+**Context.** [architecture.md](architecture.md) §9.2 requires extracted content to be "fenced and labeled in the prompt as quoted problem material, not as instructions". Statements are attacker-controllable in principle, and that text goes into a prompt the user sends to ChatGPT.
+
+**Reasoning.** A literal markdown fence cannot be the mechanism. Fencing a statement renders its LaTeX, lists and headings as inert literal text — the lossy plain-text approximation [D026](#d026) exists to forbid — and statements contain their own fenced example blocks, which would close ours from the inside. Named tags survive nested markdown untouched, cost nothing in fidelity, and are the boundary convention models are actually trained to read as data. Escaping rather than stripping a closing tag found in the text matters because a problem *about* XML is an ordinary problem, and deleting from a statement is the failure mode D026 rules out.
+
+**Alternatives.** A markdown fence per section (rejected: destroys D026 and collides with the statement's own fences); no delimiter, relying on the section headings (rejected: a heading is not a boundary, and the statement can write its own headings); strip closing tags instead of escaping them (rejected: silently deletes content).
+
+**Consequences.** The default template gains a line explaining the tags, which a user editing their template can delete — the wrapping survives, the explanation does not. This is one mitigation among four in §9.2, and the load-bearing one remains that the extension never auto-submits ([D003](#d003)).
+
+**Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §9.2, [spec.md](spec.md) §8, [D026](#d026)
+
+<a id="d041"></a>
+### D041 — The clipboard write happens in whichever surface has focus
+
+**Decision.** The service worker builds the prompt; the *write* is done by the surface that fired the action. The keyboard command and the context menu inject the writer into the page. The popup writes it itself, from a `PROMPT_RESULT` reply. [spec.md](spec.md) §7.3 is amended.
+
+**Context.** §7.3 said the write happens in the content script, on the grounds that service workers have no clipboard. True, but incomplete.
+
+**Reasoning.** `navigator.clipboard.writeText` requires the calling document to be focused, and while the popup is open the page is **not** the focused document — the write throws "Document is not focused" there. The `execCommand` fallback needs a focused document too, so it does not rescue this. The permission that would lift the requirement, `clipboardWrite`, is deliberately not requested ([spec.md](spec.md) §10, [D021](#d021)'s posture), and asking for it to avoid a fifteen-line branch would be a poor trade on the install dialog. So the surface holding the user's gesture has to do the write: for two surfaces that is the page, for one it is the popup. Everything before delivery — context, settings, template, truncation — is the same code either way, so the prompts cannot differ.
+
+**Alternatives.** Add `clipboardWrite` (rejected: a new permission for a UI convenience); have the popup close first and let the page write (rejected: races the close, and a failed write after the popup is gone has nowhere to report); always write from the popup (rejected: two of three surfaces never open one).
+
+**Consequences.** `runAction` takes a `returnPrompt` option and the `Msg` union gains `PROMPT_RESULT`. The single-dispatch-path property of [D013](#d013) is preserved in the part that matters — what the prompt contains — while delivery varies by surface, which it must.
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §7.3, §4.1, [D013](#d013)
 
 ---
 

@@ -406,7 +406,13 @@ function normalize(md: string, ctx: Ctx, opts: { restore: boolean }): string {
     .map((line) => {
       // Preserve leading indentation -- it carries list nesting.
       const indent = /^[ \t]*/.exec(line)?.[0] ?? '';
-      return indent + line.slice(indent.length).replace(/[ \t]+/g, ' ').trimEnd();
+      const rest = line.slice(indent.length).replace(/[ \t]+/g, ' ').trimEnd();
+      // A line with nothing but whitespace on it is a blank line, and has to
+      // become one: the indentation above would otherwise keep it alive, and
+      // the run-collapsing below only sees `\n\n\n`, not `\n \n`. The source
+      // of these is the whitespace between two block elements, which every
+      // one of these sites formats its markup with.
+      return rest ? indent + rest : '';
     })
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')

@@ -97,13 +97,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
   };
 
+  // A message with no `sender.tab` came from an extension page -- the popup.
+  // That surface writes the clipboard itself, because the page is not the
+  // focused document while the popup is open (D040).
+  const returnPrompt = message.action === 'copyPrompt' && sender.tab === undefined;
+
   void resolveTab()
-    .then((tab) => runAction(message.action, tab))
-    .then(() => {
-      sendResponse({ ok: true });
+    .then((tab) => runAction(message.action, tab, { returnPrompt }))
+    .then((prompt) => {
+      const reply: Msg | { ok: true } = returnPrompt
+        ? { type: 'PROMPT_RESULT', prompt }
+        : { ok: true };
+      sendResponse(reply);
     })
     .catch(() => {
-      sendResponse({ ok: false });
+      sendResponse(returnPrompt ? { type: 'PROMPT_RESULT', prompt: null } : { ok: false });
     });
 
   return true; // the response is asynchronous

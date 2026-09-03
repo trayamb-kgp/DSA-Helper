@@ -94,5 +94,11 @@ export type Msg =
   | { type: 'RUN_ACTION'; action: ActionId; tabId?: number }
   | { type: 'GET_CONTEXT_FOR_POPUP' }
   | { type: 'CLAIM_PENDING_PROMPT' }
+  /**
+   * Reply to a RUN_ACTION of 'copyPrompt' sent from the popup, which has to do
+   * its own clipboard write (D040). `prompt` is null when there was nothing to
+   * build one from; the worker has already said so.
+   */
+  | { type: 'PROMPT_RESULT'; prompt: string | null }
   | { type: 'PENDING_PROMPT'; prompt: string | null }
   | { type: 'TOAST'; level: ToastLevel; text: string };

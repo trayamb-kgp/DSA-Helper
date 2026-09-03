@@ -126,6 +126,31 @@ Manual, in a real Chrome:
 
 ---
 
+## 3c. Phase 4 acceptance — prompt builder and clipboard
+
+Automated:
+
+- [x] A full capture carries problem, examples, constraints, code in a language-tagged fence, and the review instructions, with no placeholder left unsubstituted
+- [x] Every gap is *stated*: three missing sections give three explicit notes; difficulty, tags and language degrade to named text rather than to blanks (spec.md §8)
+- [x] A locked problem states the Premium condition where the statement would be, and still carries the link and every readable field ([D027](decisions.md#d027))
+- [x] No code gives the paste placeholder, never an empty fence; `includeCode: false` reads as a choice instead of a failure
+- [x] Truncation cuts the statement, then examples, and **never** the code or the constraints — going over budget instead, and saying so ([D022](decisions.md#d022))
+- [x] Quoted text is wrapped in labelled tags, and a statement containing `</problem_statement>` cannot close its own wrapper ([D040](decisions.md#d040))
+- [x] The clipboard falls back to `execCommand` when the modern API refuses, leaves no textarea behind, and reports failure rather than claiming a copy
+- [x] `copyInPage` survives the `executeScript` round-trip, tested by rebuilding it from its own source
+
+Manual, in a real Chrome:
+
+- [ ] **Paste a generated prompt into ChatGPT and judge the reply.** Prompt quality is the actual product and no test can check it. Do this for a problem you already know the answer to, so the reply can be judged
+- [ ] **All three surfaces agree** — copy from the popup, the menu and a bound shortcut on the same problem; the clipboard must hold the same text each time. The popup takes a different delivery route ([D041](decisions.md#d041)) and is the one to watch
+- [ ] **Bind the shortcut first** — `copy-prompt` ships unbound (Chrome allows only four suggested keys), so set one at `chrome://extensions/shortcuts`
+- [ ] **The confirmation is accurate** — on a problem with no captured code, the toast says to paste it in; on a Premium problem it says the statement is locked
+- [ ] **A long solution** — paste a 400-line file into the editor and confirm the statement shortens while the code arrives whole
+- [ ] **Plain HTTP** — copy on a non-HTTPS page, where the modern clipboard API is unavailable and the `execCommand` fallback has to carry it
+- [ ] **`includeCode: false`** — turn it off and confirm the prompt says the omission was deliberate
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.

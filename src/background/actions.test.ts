@@ -25,6 +25,8 @@ interface FakeChrome {
   badges: Array<{ tabId?: number; text: string }>;
   contextReply: unknown;
   injectionThrows: boolean;
+  /** What an injected function reports back. Only the copy path reads it. */
+  injectionResult: unknown;
 }
 
 let fake: FakeChrome;
@@ -37,6 +39,7 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
     badges: [],
     contextReply: null,
     injectionThrows: false,
+    injectionResult: true,
   };
 
   const { promptTemplate, ...rest } = { ...DEFAULT_SETTINGS, ...settings };
@@ -68,7 +71,7 @@ function installChrome(settings: Partial<Settings> = {}): FakeChrome {
       executeScript: async (opts: { target: { tabId: number }; args: unknown[] }) => {
         if (state.injectionThrows) throw new Error('cannot inject here');
         state.injected.push({ tabId: opts.target.tabId, args: opts.args });
-        return [];
+        return [{ result: state.injectionResult }];
       },
     },
     action: {
@@ -254,12 +257,11 @@ describe('runAction — degrading, never dead-ending (D016)', () => {
     expect(fake.badges.some((b) => b.text === '!')).toBe(true);
   });
 
-  it('says the other two actions are not built yet rather than ignoring them', async () => {
+  it('says an unbuilt action is unbuilt rather than ignoring it', async () => {
     const { runAction } = await load();
     await runAction('chatgpt', tab());
-    await runAction('copyPrompt', tab());
 
-    expect(toastTexts(fake)).toHaveLength(2);
+    expect(toastTexts(fake)).toHaveLength(1);
     expect(toastTexts(fake).join(' ')).toContain('later phase');
     expect(fake.created).toHaveLength(0);
   });
@@ -285,6 +287,88 @@ describe('runAction — degrading, never dead-ending (D016)', () => {
 
     expect(fake.created).toHaveLength(0);
     expect(fake.injected).toHaveLength(0);
+  });
+});
+
+describe('runAction — the clipboard action (spec §7.3)', () => {
+  it('builds the prompt and hands it to the page to write', async () => {
+    fake.contextReply = {
+      type: 'CONTEXT_RESULT',
+      context: context({ statementMd: 'Given an array...', code: 'int main() {}', language: 'C++' }),
+    };
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+
+    // Two injections: the copy, then the confirmation toast.
+    const copied = String(fake.injected[0]?.args[0] ?? '');
+    expect(copied).toContain('Sort an Array');
+    expect(copied).toContain('int main() {}');
+    expect(copied).toContain('<problem_statement>');
+    expect(fake.created).toHaveLength(0);
+  });
+
+  it('confirms the copy', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'x' }) };
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+
+    expect(toastTexts(fake).join(' ')).toContain('Prompt copied');
+  });
+
+  it('says what was missing rather than quietly copying less', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: null }) };
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+
+    expect(toastTexts(fake).join(' ')).toContain('paste yours in');
+  });
+
+  it('reports a clipboard that refused rather than claiming success', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'x' }) };
+    fake.injectionResult = false;
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+
+    expect(toastTexts(fake).join(' ')).toContain("Couldn't reach the clipboard");
+  });
+
+  it('says so when there is no context to build a prompt from', async () => {
+    fake.contextReply = null;
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+
+    // Unlike the YouTube search, a page title alone makes no useful prompt.
+    expect(toastTexts(fake).join(' ')).toContain('nothing to build a prompt from');
+    expect(fake.injected.every((entry) => typeof entry.args[1] === 'string')).toBe(true);
+  });
+
+  it('returns the prompt instead of writing it when the popup asks (D040)', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'int main() {}' }) };
+    const { runAction } = await load();
+    const prompt = await runAction('copyPrompt', tab(), { returnPrompt: true });
+
+    expect(prompt).toContain('int main() {}');
+    // Nothing was injected: the popup does its own write.
+    expect(fake.injected).toHaveLength(0);
+  });
+
+  it('returns null, having said why, when the popup asks and there is no context', async () => {
+    fake.contextReply = null;
+    const { runAction } = await load();
+    const prompt = await runAction('copyPrompt', tab(), { returnPrompt: true });
+
+    expect(prompt).toBeNull();
+    expect(toastTexts(fake).join(' ')).toContain('nothing to build a prompt from');
+  });
+
+  it('is debounced like every other action', async () => {
+    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'x' }) };
+    const { runAction } = await load();
+    await runAction('copyPrompt', tab());
+    const injectionsAfterFirst = fake.injected.length;
+    await runAction('copyPrompt', tab());
+
+    expect(fake.injected).toHaveLength(injectionsAfterFirst);
   });
 });
 

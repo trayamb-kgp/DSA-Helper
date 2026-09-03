@@ -11,6 +11,8 @@ import type { ActionId, Msg, ProblemContext, Settings, ToastLevel } from '../cor
 import { getSettings } from '../core/storage';
 import { platformForUrl } from '../core/urls';
 import { buildQuery, searchUrl, varsFromContext, varsFromTab } from '../core/youtube';
+import { buildPrompt, describeResult } from '../core/prompt';
+import { copyInPage } from '../content/platform/clipboard';
 import { toastInPage } from '../content/platform/toast';
 
 /**
@@ -51,8 +53,10 @@ const UNSUPPORTED =
 
 const NOT_YET: Partial<Record<ActionId, string>> = {
   chatgpt: 'Ask ChatGPT is not wired up yet — it arrives in a later phase.',
-  copyPrompt: 'Copy prompt is not wired up yet — it arrives in a later phase.',
 };
+
+const NO_CONTEXT =
+  "Couldn't read this problem, so there's nothing to build a prompt from.";
 
 /**
  * Show a toast on any tab, including one with no content script.
@@ -152,30 +156,106 @@ async function runYouTube(tab: chrome.tabs.Tab, tabId: number, url: string): Pro
   }
 }
 
+/**
+ * Build the prompt for a tab, or explain why it couldn't be.
+ *
+ * Shared by both copy routes so they cannot produce different prompts, which
+ * is the whole point of the single dispatch path (D013).
+ */
+async function preparePrompt(tabId: number): Promise<{ prompt: string; note: string } | null> {
+  const [settings, context] = await Promise.all([getSettings(), requestContext(tabId)]);
+  // Unlike the YouTube search, there is no useful prompt to build from a page
+  // title alone: a review request with no statement and no code is noise.
+  if (!context) return null;
+
+  const result = buildPrompt(context, settings);
+  return { prompt: result.prompt, note: describeResult(result) };
+}
+
+/** The clipboard action, spec.md section 7.3. */
+async function runCopyPrompt(tabId: number): Promise<void> {
+  const built = await preparePrompt(tabId);
+  if (!built) {
+    await showToast(tabId, 'warn', NO_CONTEXT);
+    return;
+  }
+
+  // The page is the focused document for the command and menu routes, so the
+  // write happens there (D040). The popup route never reaches this function.
+  const [outcome] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: copyInPage,
+    args: [built.prompt],
+  });
+
+  if (outcome?.result === true) {
+    await showToast(tabId, 'info', built.note);
+    return;
+  }
+  await showToast(tabId, 'error', "Couldn't reach the clipboard on this page.");
+}
+
+export interface RunOptions {
+  /**
+   * Return the prompt instead of writing it from the page.
+   *
+   * Set by the popup, which has to do its own clipboard write: while it is
+   * open the page is not the focused document and `writeText` refuses there
+   * (D040). Everything before delivery is the same code either way.
+   */
+  returnPrompt?: boolean;
+}
+
+/**
+ * Returns the built prompt when `returnPrompt` was asked for and there was one
+ * to build; null in every other case, including every non-clipboard action.
+ */
 export async function runAction(
   action: ActionId,
   tab: chrome.tabs.Tab | undefined,
-): Promise<void> {
+  options: RunOptions = {},
+): Promise<string | null> {
   const tabId = tab?.id;
   const url = tab?.url;
-  if (tabId == null || !url) return; // nothing addressable; nothing to say it to
+  if (tabId == null || !url) return null; // nothing addressable; nothing to say it to
 
-  if (!shouldRun(tabId, action)) return;
+  if (!shouldRun(tabId, action)) return null;
 
   if (!platformForUrl(url)) {
     await showToast(tabId, 'info', UNSUPPORTED);
-    return;
+    return null;
   }
 
   const pending = NOT_YET[action];
   if (pending) {
     await showToast(tabId, 'info', pending);
-    return;
+    return null;
   }
 
   try {
+    if (action === 'copyPrompt') {
+      if (options.returnPrompt) {
+        const built = await preparePrompt(tabId);
+        if (!built) {
+          await showToast(tabId, 'warn', NO_CONTEXT);
+          return null;
+        }
+        return built.prompt;
+      }
+      await runCopyPrompt(tabId);
+      return null;
+    }
+
     await runYouTube(tab, tabId, url);
+    return null;
   } catch {
-    await showToast(tabId, 'error', 'DSA Helper hit an error opening the search.');
+    await showToast(
+      tabId,
+      'error',
+      action === 'copyPrompt'
+        ? 'DSA Helper hit an error building the prompt.'
+        : 'DSA Helper hit an error opening the search.',
+    );
+    return null;
   }
 }

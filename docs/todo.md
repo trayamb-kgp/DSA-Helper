@@ -84,7 +84,7 @@ Capture early — they're the only thing that detects a site redesign before use
 - [x] **M1** Core — types, storage, template renderer, `html2md`
 - [x] **M2** LeetCode adapter — metadata + all four code-capture layers
 - [x] **M3** YouTube action — all three trigger surfaces
-- [ ] **M4** Prompt builder + copy-to-clipboard
+- [x] **M4** Prompt builder + copy-to-clipboard
 - [ ] **M5** ChatGPT injection — banner + clipboard fallback
 - [ ] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
 - [ ] **M7** Options page + history
@@ -92,7 +92,7 @@ Capture early — they're the only thing that detects a site redesign before use
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 
@@ -135,7 +135,9 @@ Everything below is automated-green but needs a real browser to confirm.
 
 **Phase 3 — the YouTube action** ([TESTING.md](TESTING.md) §3b): all three surfaces open the same search; the badge follows SPA navigation between problems without a reload; an unsupported page and a `chrome://` page each say something rather than nothing.
 
-Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a, §3b.
+**Phase 4 — the prompt** ([TESTING.md](TESTING.md) §3c): **paste a generated prompt into ChatGPT and judge the reply** — prompt quality is the actual product and no test can check it; copy from all three surfaces and confirm the clipboard holds the same text each time.
+
+Run `npm run build`, then `chrome://extensions` → Developer mode → Load unpacked → select `dist/`. See [TESTING.md](TESTING.md) §3, §3a, §3b, §3c.
 
 **Notes:** _—_
 

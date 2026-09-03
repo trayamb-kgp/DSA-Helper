@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–3 complete (manual Chrome checks from phases 0, 2 and 3 outstanding). Phase 4 is next.
+**Status:** phases 0–4 complete (manual Chrome checks from phases 0, 2, 3 and 4 outstanding). Phase 5 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -317,32 +317,65 @@ Verified automatically — `npm run typecheck`, `npm test` (301 tests, 76 new) a
 
 ### Tasks
 
-- [ ] Compose prompt from `ProblemContext` + template
-- [ ] Apply truncation in the correct order, with cut markers ([D022](../decisions.md))
-- [ ] Fence extracted content and label it as quoted problem material, not instructions ([architecture.md](../architecture.md) §9.2)
-- [ ] Missing sections → explicit notes ([spec.md](../spec.md) §8)
-- [ ] Locked problems → link-only prompt with the locked state stated ([D027](../decisions.md))
-- [ ] No code captured → paste placeholder, not an empty fence
-- [ ] `includeCode: false` honoured
-- [ ] Clipboard write in the content script; hidden-textarea + `execCommand` fallback; confirmation toast
-- [ ] Copy-prompt wired to popup and context menu
+- [x] Compose prompt from `ProblemContext` + template
+- [x] Apply truncation in the correct order, with cut markers ([D022](../decisions.md))
+- [x] Fence extracted content and label it as quoted problem material, not instructions ([architecture.md](../architecture.md) §9.2)
+- [x] Missing sections → explicit notes ([spec.md](../spec.md) §8)
+- [x] Locked problems → link-only prompt with the locked state stated ([D027](../decisions.md))
+- [x] No code captured → paste placeholder, not an empty fence
+- [x] `includeCode: false` honoured
+- [x] Clipboard write in the content script; hidden-textarea + `execCommand` fallback; confirmation toast
+- [x] Copy-prompt wired to popup and context menu
 
 ### Decisions
 
-_None yet._
+Two went into [decisions.md](../decisions.md):
+
+- **[D040](../decisions.md#d040) — quoted problem text is tagged, not fenced.** [architecture.md](../architecture.md) §9.2 asks for extracted content to be "fenced and labeled". A literal markdown fence cannot be the mechanism: it renders the statement's LaTeX, lists and headings as inert text — the approximation [D026](../decisions.md#d026) forbids — and statements carry their own fenced example blocks, which would close ours from the inside. Named tags do the labelling without costing any fidelity. Amends the default template in [spec.md](../spec.md) §8.
+- **[D041](../decisions.md#d041) — the clipboard write happens in whichever surface has focus.** §7.3 said the content script does it. That works for the command and the menu, and cannot work for the popup: while the popup is open the page is not the focused document, and `writeText` throws there. The `clipboardWrite` permission that would lift it is deliberately not requested. Amends [spec.md](../spec.md) §7.3 and §4.1.
+
+Smaller calls, recorded here only:
+
+- **`core/prompt.ts` is new**, and it is where every §8 rule lives: the notes, the tags, the placeholders, the truncation call. It is pure, so phase 7's live template preview gets it for free.
+- **A locked problem's statement is kept out of the truncation budget entirely.** The note that stands in for it is ours, not quoted, so there is nothing there to shorten.
+- **A closing tag found inside extracted text is entity-escaped, not stripped.** A problem *about* XML is an ordinary problem, and deleting from a statement is exactly the failure D026 rules out.
+- **`includeCode: false` and "no code captured" read differently** — `(code intentionally not included)` against `(no code captured — I'll paste it below)`. One is a choice, the other is a gap, and a model that cannot tell them apart will apologise for the wrong thing.
+- **The copy toast names what is missing.** A prompt without the user's code is still worth copying, but only if they know to paste it in.
+- **No degradation ladder for the prompt.** Unlike the YouTube search, a page title alone makes no useful review request, so with no context the action says so rather than copying something worthless.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user. D041 contradicts §7.3 as written, and was resolved the only way the platform allows.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification.
+
+Verified automatically — `npm run typecheck`, `npm test` (346 tests, 45 new) and `npm run build` all clean:
+
+- A full capture carries problem, examples, constraints, code, language-tagged fence and instructions, with no placeholder left unsubstituted
+- Every gap is *stated*: three missing sections give three explicit notes, and difficulty, tags and language degrade to named text rather than to blanks
+- A locked problem states the Premium condition where the statement would be, and still carries the link and every readable field
+- No code gives the paste placeholder, never an empty fence; `includeCode: false` reads as a choice instead
+- Truncation cuts the statement, then examples, never the code and never the constraints — going over budget instead, and saying so
+- A statement containing `</problem_statement>` cannot close its own wrapper, and nothing of it is deleted
+- The clipboard falls back to `execCommand` when the modern API refuses, leaves no textarea behind, and reports failure rather than claiming a copy
+- `copyInPage` survives the `executeScript` round-trip, tested by rebuilding it from its own source
+
+**Read end to end, as the plan asked** — and it caught something the tests did not: every prompt carried stray single-space lines, from the whitespace between block elements in the source markup. `normalize` was keeping them alive because the indent-preserving rule that makes nested lists work also protects a line of pure whitespace. Fixed in `html2md`, with a test.
+
+**Outstanding — user action, tracked in [TESTING.md](../TESTING.md) §3c:**
+
+1. **Paste a generated prompt into ChatGPT by hand** and judge the reply. This is the one thing no test can do, and prompt quality is the actual product.
+2. Copy from all three surfaces on a real problem and confirm the clipboard holds the same prompt each time — the popup takes a different delivery route (D041) and is the one to watch.
+3. Confirm the copy works on a page served over plain HTTP, where the modern clipboard API is unavailable and the fallback has to carry it.
 
 ### Additional Notes
 
-- Build this **before** Phase 5 deliberately: it's the fallback the ChatGPT flow depends on, so it must already work before anything can degrade into it.
-- Read a few generated prompts end to end and paste one into ChatGPT by hand. Prompt quality is the actual product; it's worth judging with eyes, not just tests.
+- Build this **before** Phase 5 deliberately: it's the fallback the ChatGPT flow depends on, so it must already work before anything can degrade into it. It does — phase 5 can degrade into `runAction('copyPrompt')` directly.
+- `copyInPage` is under the same self-containment constraint as `toastInPage`: it is serialised into pages by `executeScript`, so a reference to anything outside its body becomes a silent ReferenceError. Both have a test that rebuilds them from their own source.
+- The `describeResult` line is deliberately one sentence — it goes into a toast, and a toast nobody finishes reading is a toast that said nothing.
+- Phase 7's options preview should call `buildPrompt` directly rather than reimplementing any of §8.
 
 ---
 

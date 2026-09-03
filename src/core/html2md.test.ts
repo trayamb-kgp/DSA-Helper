@@ -112,6 +112,15 @@ describe('non-breaking spaces', () => {
     expect(md('<p>a&nbsp;b</p>')).toBe('a b');
   });
 
+  it('leaves no whitespace-only lines between blocks', () => {
+    // The newlines and indentation between two block elements become a text
+    // node, and a line holding just that reads as blank but is not — it
+    // survives blank-line collapsing and litters the prompt.
+    const out = md('<p>First.</p>\n\n  <pre>code</pre>\n\n  <p>Second.</p>');
+    expect(out.split('\n').every((line) => line === '' || line.trim() !== '')).toBe(true);
+    expect(out).not.toMatch(/\n \n/);
+  });
+
   it('drops the spacer paragraphs sites use for layout', () => {
     // LeetCode separates every statement section with <p>&nbsp;</p>.
     expect(md('<p>First.</p><p>&nbsp;</p><p>Second.</p>')).toBe('First.\n\nSecond.');

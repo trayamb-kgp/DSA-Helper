@@ -107,3 +107,21 @@ body {
 .primary:hover {
   filter: brightness(1.08);
 }
+
+/* Phase 4: the clipboard action, which the popup completes itself (D040). */
+.secondary {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
