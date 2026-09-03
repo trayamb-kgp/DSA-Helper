@@ -4,7 +4,7 @@ How this extension is verified. Automated checks catch regressions in pure logic
 
 **Maintenance:** when a phase of the [implementation plan](implementation-plan/implementation-plan-1.md) adds behaviour, add its checks here in the same change. When a bug escapes to a user, add the case that would have caught it.
 
-**Last updated:** 2026-09-02
+**Last updated:** 2026-09-03
 
 ---
 
@@ -50,7 +50,73 @@ Then: `chrome://extensions` → enable **Developer mode** → **Load unpacked** 
 
 After any rebuild, click the reload icon on the extension card. Changes to the service worker sometimes need the card's **service worker** link opened once to re-activate it.
 
-For iterative work, `npm run dev` gives hot reload; the extension still has to be loaded from `dist/` once.
+For iterative work, `npm run dev` gives hot reload; the extension still has to be loaded from `dist/` once. `npm run dev` serves **no web page** — it rebuilds the extension. There is nothing to open at `localhost:5173`, and it is not needed for any check below.
+
+### 2.1 Where errors show up
+
+| What broke | Where to look |
+|---|---|
+| An action did nothing | `chrome://extensions` → the card → **service worker** link → Console |
+| Extraction is wrong | The problem page's own DevTools console |
+| The popup misbehaves | Right-click inside the popup → **Inspect** |
+| ChatGPT insertion | The ChatGPT tab's DevTools console |
+
+The service worker sleeps after ~30 s. Opening its console wakes it; a keystroke also wakes it, so a cold worker is not a bug.
+
+### 2.2 Changing settings before phase 7
+
+The options page is a scaffold until phase 7, so there is no UI for the toggles yet. Set them from the **service worker console**:
+
+```js
+await chrome.storage.sync.set({ settings: { autoInjectChatGpt: false } })
+```
+
+This **replaces** the whole settings object rather than merging into it — anything omitted falls back to its default, which is what you want between checks. No reload is needed; every action reads settings fresh. To go back to stock:
+
+```js
+await chrome.storage.sync.remove('settings')
+```
+
+---
+
+## 2.3 Your first testing session
+
+The checklists in §3 onward are grouped by the phase that introduced them, which is the right shape for a record and the wrong shape for a person sitting down to test. This is the order to actually work through, most informative first.
+
+**Setup, once.**
+
+```bash
+npm run build
+```
+
+1. `chrome://extensions` → **Developer mode** on → **Load unpacked** → select `dist/`.
+2. Open `chrome://extensions/shortcuts` and **bind `copy-prompt`** — it ships unbound, because Chrome allows only four suggested keys. Confirm `Alt+Shift+Y` and `Alt+Shift+G` are listed.
+3. Pin the extension to the toolbar, so the badge is visible.
+
+**Round 0 — does it load at all?** (§3, ~2 min)
+No red error on the extension card; the toolbar icon opens the popup; the options page opens.
+
+**Round 1 — LeetCode extraction.** (§3a, ~5 min)
+Open `leetcode.com/problems/two-sum/`. The badge should show a dot. Open the popup: title, number, difficulty, tags and the three section sizes should all be populated, and Code should name a source. **This is the spine — if it is wrong, everything downstream is too**, so stop and report it before going on.
+
+**Round 2 — the YouTube action.** (§3b, ~5 min)
+On that same problem, fire it three ways: `Alt+Shift+Y`, the popup button, the right-click menu. All three must open the *same* search, and it must match the preview the popup showed.
+
+**Round 3 — the prompt.** (§3c, ~10 min) ← **the one that matters most**
+Copy the prompt and **paste it into ChatGPT by hand**. Read the reply. Pick a problem you already know the answer to, so you can judge whether the review is any good. Prompt quality is the actual product and no test can check it.
+
+**Round 4 — Ask ChatGPT.** (§3d, ~10 min)
+`Alt+Shift+G`. The prompt should land in the composer **unsent**, with the banner. Check your conversation list afterwards: no new conversation should have been started.
+
+**Round 5 — the other three platforms.** (§3e, ~10 min)
+**GeeksforGeeks first** — its hashed CSS-module class names are the most likely thing in the project to be wrong. Then CodeChef, then Codeforces.
+
+**Round 6 — the failure paths.** (~10 min)
+Fire a shortcut on `example.com` (expect a toast), on `chrome://extensions` (expect a `!` badge), and break the ChatGPT composer selector on purpose to prove the clipboard fallback fires (§3d).
+
+**If you only have fifteen minutes:** Round 0, Round 1, Round 3. Those three tell you whether the thing works.
+
+**When something is wrong,** note the platform, the exact URL, what the popup showed, and anything in the service worker console. The diagnostics the adapters record — which selector matched, which fallback — are collected but **not surfaced anywhere yet**; the panel that shows them is phase 7.
 
 ---
 
