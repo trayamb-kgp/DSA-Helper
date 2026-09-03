@@ -70,6 +70,8 @@
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
 | [D036](#d036) | Inaccessibility is a field on `ProblemContext` | Accepted | 2026-09-03 |
+| [D037](#d037) | Adapters are handed the page, they never reach for it | Accepted | 2026-09-03 |
+| [D038](#d038) | Stored buffers are chosen by open language, not recency | Accepted | 2026-09-03 |
 
 ---
 
@@ -554,6 +556,34 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** Every adapter must set the field, defaulting to `false`. The prompt builder branches on it in phase 4, and the popup in phase 3.
 
 **Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §5, §6.6, [D027](#d027)
+
+<a id="d037"></a>
+### D037 — Adapters are handed the page, they never reach for it
+
+**Decision.** `extractMeta` and `extractCode` take an `ExtractEnv` — the URL, the `Document`, the page's `localStorage`, and callbacks for the editor bridge and the current selection — instead of reading `document`, `location` and `localStorage` off the global scope. The adapter interface in [spec.md](spec.md) §6.2 is amended accordingly, and gains `canonicalUrl(url)` and `isReady(env)`.
+
+**Context.** The interface as sketched took no arguments, which means every adapter reads ambient globals. A fixture test then has to install a whole page into the test's own globals, one fixture at a time, and undo it afterwards.
+
+**Reasoning.** Ambient globals make the most site-coupled code in the project the hardest part to test, which is backwards — the adapters are exactly where a fixture suite has to be cheap enough that nobody skips writing one. Injection also removes the shared-state hazard between fixtures, lets `localStorage` probing be tested without touching a real store, and makes the MAIN-world bridge stubbable, so layer 2 of the code ladder is testable without a page at all. The adapter still reads nothing but the page; what changed is who hands it over.
+
+**Consequences.** One more parameter through the extraction path, and a small `makeEnv()` in the content script that builds the real one. `warnings` and `diagnostics` ride on the env as sinks, which is what makes the per-field guards ([D015](#d015)) composable. `canonicalUrl` is needed because `ProblemContext.url` must survive a failed `extractMeta`; `isReady` is what the retry backoff polls.
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §6.2, [implementation-plan-1.md](implementation-plan/implementation-plan-1.md) phase 2
+
+<a id="d038"></a>
+### D038 — Stored buffers are chosen by open language, not recency
+
+**Decision.** When `localStorage` probing turns up several saved buffers for one problem, the one whose language matches the language currently open in the editor wins. Failing that, the longest buffer wins and the user is told the choice was a guess. [spec.md](spec.md) §6.4's "most recently written plausible value" is amended to this.
+
+**Context.** The spec asked for the most recently written value. The Storage API exposes no write time, and LeetCode stores none alongside the buffer, so recency is not knowable from inside the page.
+
+**Reasoning.** Rather than approximate recency badly, use the signal that is actually available and is already the right answer: [D025](#d025) says the buffer open in the editor is the solution attempt, and the open language is recorded in a global storage key. That makes layer 1 agree with layer 2 by construction rather than by luck. The remaining tie — several buffers, no language signal — is decided by length because it is stable across runs, and the guess is surfaced as a warning rather than hidden.
+
+**Alternatives.** Sort keys lexicographically and take the last (rejected: arbitrary, and silently so); return every buffer and let the prompt carry all of them (rejected: D025 already refused this); skip layer 1 when ambiguous (rejected: throws away a usually-correct capture to avoid an occasionally-wrong one).
+
+**Consequences.** A solver who has just switched language, before the site has written the new global key, may get the previous buffer. The warning says the choice was a guess, so the capture is visible before it is sent.
+
+**Status.** Accepted · 2026-09-03 · see [spec.md](spec.md) §6.4, [D025](#d025)
 
 ---
 

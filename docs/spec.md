@@ -181,13 +181,17 @@ type ActionId = 'youtube' | 'chatgpt' | 'copyPrompt';
    ├─ content/
    │   ├─ platform/
    │   │   ├─ index.ts         # entry: route to adapter, listen for EXTRACT_CONTEXT
-   │   │   ├─ adapter.ts       # PlatformAdapter interface
+   │   │   ├─ adapter.ts       # PlatformAdapter interface + per-field guards
+   │   │   ├─ registry.ts      # resolveAdapter(url) — kept apart to avoid a cycle
+   │   │   ├─ bridgeClient.ts  # ISOLATED half of the editor bridge
    │   │   ├─ leetcode.ts
    │   │   ├─ codeforces.ts
    │   │   ├─ codechef.ts
    │   │   ├─ geeksforgeeks.ts
-   │   │   └─ toast.ts         # minimal shadow-DOM toast
+   │   │   ├─ toast.ts         # minimal shadow-DOM toast
+   │   │   └─ __fixtures__/    # trimmed, scrubbed page captures for the tests
    │   ├─ mainworld/
+   │   │   ├─ protocol.ts      # the wire format, shared by both ends
    │   │   └─ editorBridge.ts  # world:'MAIN' — reads monaco/ace/CodeMirror models
    │   └─ chatgpt/
    │       └─ inject.ts        # composer detection + prompt insertion
@@ -286,19 +290,33 @@ On `EXTRACT_CONTEXT`, if the expected DOM anchors are not yet present, retry wit
 ### 6.2 Adapter interface
 
 ```ts
+/** Everything an adapter may read, injected rather than reached for (D037). */
+interface ExtractEnv {
+  url: URL;
+  doc: Document;
+  storage: Storage | null;              // the page's own localStorage
+  readEditor?: () => Promise<EditorRead | null>;   // MAIN-world bridge, §6.4 layer 2
+  selection?: () => string | null;                 // §6.4 layer 4
+  now?: () => number;
+  warnings: string[];                   // user-facing gaps
+  diagnostics: string[];                // support-facing: which selector matched
+}
+
 interface PlatformAdapter {
   platform: Platform;
   platformLabel: string;
   matches(url: URL): boolean;
   isContest(url: URL): boolean;
-  extractMeta(): Promise<Pick<ProblemContext,
+  canonicalUrl(url: URL): string;       // query, hash and sub-tabs stripped (D024)
+  isReady(env: ExtractEnv): boolean;    // what the §6.1 retry backoff polls
+  extractMeta(env: ExtractEnv): Promise<Pick<ProblemContext,
     'slug' | 'number' | 'title' | 'difficulty' | 'tags' |
-    'statementMd' | 'examplesMd' | 'constraintsMd'>>;
-  extractCode(): Promise<{ code: string | null; language: string | null; source: CodeSource }>;
+    'statementMd' | 'examplesMd' | 'constraintsMd' | 'isLocked'>>;
+  extractCode(env: ExtractEnv): Promise<{ code: string | null; language: string | null; source: CodeSource }>;
 }
 ```
 
-Each adapter is independently testable against saved HTML fixtures.
+Each adapter is independently testable against saved HTML fixtures — which is what the injected `ExtractEnv` buys: a fixture is a `Document`, not a global that has to be installed and torn down (D037).
 
 ### 6.3 Metadata extraction, per platform
 
@@ -321,7 +339,7 @@ Tried in order; first success wins; provenance recorded in `codeSource`.
 
 **Which language.** A solver often has buffers saved in several languages for one problem. The one **currently open in the editor** is the solution attempt — what is on screen is what gets sent. Other buffers are ignored, and no picker is shown.
 
-**Layer 1 — site storage.** LeetCode persists the in-progress editor buffer in `localStorage` (and the chosen language in a global key). Since the exact key names are version-dependent, the adapter **probes**: enumerate `localStorage` keys, keep those containing the problem slug or frontend id, pick the most recently written plausible value. Never hard-code a single key.
+**Layer 1 — site storage.** LeetCode persists the in-progress editor buffer in `localStorage` (and the chosen language in a global key). Since the exact key names are version-dependent, the adapter **probes**: enumerate `localStorage` keys, keep those containing the problem slug or frontend id, and pick the buffer whose language matches the one open in the editor (D038 — the Storage API records no write time, so recency is not available; the open language is, and it is what D025 says the solution attempt is). Ties are broken by length, and the guess is surfaced as a warning. Never hard-code a single key.
 
 **Layer 2 — editor API via MAIN-world bridge.** A script registered with `world: 'MAIN'` reads the editor's real model:
 

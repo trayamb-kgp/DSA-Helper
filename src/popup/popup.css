@@ -38,3 +38,38 @@ body {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* Phase 2 verification readout. Replaced by the popup proper in phase 7. */
+.title {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.row-label {
+  color: var(--muted);
+}
+
+.row-value {
+  text-align: right;
+}
+
+.locked {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.warnings {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}

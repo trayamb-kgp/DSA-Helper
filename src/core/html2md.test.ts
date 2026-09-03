@@ -79,6 +79,45 @@ describe('D026 — LaTeX passes through verbatim', () => {
   });
 });
 
+describe('D026 — exponents and indices survive the conversion', () => {
+  it('renders a superscript as an exponent rather than dropping it', () => {
+    // The failure this pins down: `5 * 104` is not a rounder version of
+    // `5 * 10^4`, it is a different constraint by a factor of 500.
+    expect(md('<p>1 &lt;= n &lt;= 5 * 10<sup>4</sup></p>')).toBe('1 <= n <= 5 * 10^4');
+  });
+
+  it('renders a subscript as an index', () => {
+    expect(md('<p>a<sub>1</sub> + a<sub>2</sub></p>')).toBe('a_1 + a_2');
+  });
+
+  it('braces anything longer than a single character', () => {
+    expect(md('<p>2<sup>31</sup> - 1</p>')).toBe('2^{31} - 1');
+    expect(md('<p>x<sub>i+1</sub></p>')).toBe('x_{i+1}');
+  });
+
+  it('survives inside inline code, which is where the bounds actually live', () => {
+    // The shape LeetCode ships every constraint in.
+    expect(md('<li><code>1 &lt;= n &lt;= 5 * 10<sup>4</sup></code></li>')).toBe(
+      '- `1 <= n <= 5 * 10^4`',
+    );
+  });
+
+  it('leaves an empty one out entirely', () => {
+    expect(md('<p>n<sup></sup></p>')).toBe('n');
+  });
+});
+
+describe('non-breaking spaces', () => {
+  it('treats a non-breaking space as a space', () => {
+    expect(md('<p>a&nbsp;b</p>')).toBe('a b');
+  });
+
+  it('drops the spacer paragraphs sites use for layout', () => {
+    // LeetCode separates every statement section with <p>&nbsp;</p>.
+    expect(md('<p>First.</p><p>&nbsp;</p><p>Second.</p>')).toBe('First.\n\nSecond.');
+  });
+});
+
 describe('D026 — figures are named, never dropped', () => {
   it('replaces an image with a labelled placeholder carrying its alt text', () => {
     expect(md('<p><img src="https://x/y.png" alt="a binary tree"></p>')).toBe(

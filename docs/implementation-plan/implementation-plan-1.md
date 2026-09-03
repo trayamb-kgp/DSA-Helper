@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–1 complete (4 manual Chrome checks from phase 0 outstanding). Phase 2 is next.
+**Status:** phases 0–2 complete (manual Chrome checks from phases 0 and 2 outstanding). Phase 3 is next.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -168,42 +168,72 @@ None — nothing in this phase was ambiguous enough to need a decision from the 
 
 ### Tasks
 
-- [ ] `adapter.ts` — the `PlatformAdapter` interface ([spec.md](../spec.md) §6.2)
-- [ ] `resolveAdapter(url)` — pure URL→adapter function, unit-tested over many real URLs
-- [ ] URL matching for `/problems/<slug>/*` and `/contest/<c>/problems/<slug>/*`, tolerant of `/description/`, `/submissions/` and query suffixes ([D024](../decisions.md))
-- [ ] Stable `problemKey` derivation
-- [ ] Metadata: embedded question JSON first, DOM fallback second ([spec.md](../spec.md) §6.3)
-- [ ] **Per-field guards** — one field failing never fails the adapter ([D015](../decisions.md))
-- [ ] Single `SELECTORS` object with a verified-on date and ordered fallbacks per selector
-- [ ] Statement HTML → `html2md`; split examples and constraints where separable
-- [ ] **Premium/locked detection** as its own condition, not a capture gap ([D027](../decisions.md))
-- [ ] Code layer 1 — probe `localStorage` by slug/frontend id, most recent plausible value; never a hard-coded key
-- [ ] MAIN-world bridge — read-only, per-load nonce, origin + `event.source` check, 256 KB cap, 1500 ms timeout ([D020](../decisions.md))
-- [ ] Code layer 2 — Monaco model read through the bridge, plus language id
-- [ ] Code layer 3 — DOM scrape, always flagged *possibly incomplete*
-- [ ] Code layer 4 — user text selection
-- [ ] **Language selection: the buffer currently open in the editor wins** ([D025](../decisions.md))
-- [ ] Provenance recorded and surfaced
-- [ ] Capture fixtures: practice, contest, Premium — trimmed, account markup scrubbed
-- [ ] Retry backoff 100/300/700/1500 ms for un-hydrated pages
+- [x] `adapter.ts` — the `PlatformAdapter` interface ([spec.md](../spec.md) §6.2)
+- [x] `resolveAdapter(url)` — pure URL→adapter function, unit-tested over many real URLs
+- [x] URL matching for `/problems/<slug>/*` and `/contest/<c>/problems/<slug>/*`, tolerant of `/description/`, `/submissions/` and query suffixes ([D024](../decisions.md))
+- [x] Stable `problemKey` derivation
+- [x] Metadata: embedded question JSON first, DOM fallback second ([spec.md](../spec.md) §6.3)
+- [x] **Per-field guards** — one field failing never fails the adapter ([D015](../decisions.md))
+- [x] Single `SELECTORS` object with a verified-on date and ordered fallbacks per selector
+- [x] Statement HTML → `html2md`; split examples and constraints where separable
+- [x] **Premium/locked detection** as its own condition, not a capture gap ([D027](../decisions.md))
+- [x] Code layer 1 — probe `localStorage` by slug/frontend id, most recent plausible value; never a hard-coded key
+- [x] MAIN-world bridge — read-only, per-load nonce, origin + `event.source` check, 256 KB cap, 1500 ms timeout ([D020](../decisions.md))
+- [x] Code layer 2 — Monaco model read through the bridge, plus language id
+- [x] Code layer 3 — DOM scrape, always flagged *possibly incomplete*
+- [x] Code layer 4 — user text selection
+- [x] **Language selection: the buffer currently open in the editor wins** ([D025](../decisions.md))
+- [x] Provenance recorded and surfaced
+- [x] Capture fixtures: practice, contest, Premium — trimmed, account markup scrubbed
+- [x] Retry backoff 100/300/700/1500 ms for un-hydrated pages
 
 ### Decisions
 
-_None yet._
+Two went into [decisions.md](../decisions.md):
+
+- **[D037](../decisions.md#d037) — adapters are handed the page, they never reach for it.** `extractMeta`/`extractCode` take an `ExtractEnv` (URL, `Document`, `localStorage`, bridge and selection callbacks, plus the `warnings`/`diagnostics` sinks) rather than reading globals. Amends [spec.md](../spec.md) §6.2, which also gains `canonicalUrl` and `isReady`.
+- **[D038](../decisions.md#d038) — stored buffers are chosen by open language, not recency.** §6.4 asked for the most recently written value; the Storage API records no write time, so that is not knowable. The open editor language is available and is already the right answer under [D025](../decisions.md#d025).
+
+Smaller calls, recorded here only:
+
+- **`html2md` now renders `<sup>`/`<sub>` as `^` and `_`** (braced when longer than one character), including inside inline code. This was found by the fixture tests, not by reading: LeetCode writes every bound as `5 * 10<sup>4</sup>`, and dropping the markup produced `5 * 104` — not a rounder number but a wrong one, in the constraints, which is the one part of a statement [D026](../decisions.md#d026) says a review must not get wrong. Also folded in: `&nbsp;` is normalised to a space, so LeetCode's `<p>&nbsp;</p>` spacers stop littering the prompt with lines that look blank and aren't.
+- **The registry lives in `registry.ts`, not `adapter.ts`.** `adapter.ts` ← `leetcode.ts` ← `registry.ts` is a line; putting the adapter list beside the interface made it a cycle, and a cycle whose failure mode is a temporal-dead-zone error at load time depending on which module the bundler happens to enter first.
+- **Statement HTML is parsed into an inert document** (`doc.implementation.createHTMLDocument`), not a detached `<div>`. A detached div in the live document still fetches the images in the statement, and this extension makes no network requests ([D010](../decisions.md#d010)).
+- **JSON discovery probes rather than addresses.** No container name is hard-coded — LeetCode has shipped Next.js data, an Apollo cache and neither. Any script mentioning `questionFrontendId` or `titleSlug` is parsed and walked (depth- and budget-capped) for the question object.
+- **The statement is split on the markdown, not the DOM**, so the same splitter serves both the JSON path and the DOM path. A "Follow up:" block stays inside the constraints section: truncation never cuts constraints ([D022](../decisions.md#d022)), so that is the placement that cannot lose it.
+- **Fixtures are hand-built from the documented page shapes, not captured from a live account** — see Track.
 
 ### Q&A
 
-_None yet._
+None — nothing in this phase needed a decision from the user. The one judgement call that could have gone either way (D037, changing an interface the spec had already sketched) was made in the direction the project's own testing architecture asks for and recorded rather than raised.
 
 ### Track
 
-Not started.
+**Phase complete**, except the manual verification, which needs a real Chrome and a LeetCode account.
+
+Verified automatically — `npm run typecheck`, `npm test` (225 tests, 101 new) and `npm run build` all clean:
+
+- 20 real LeetCode URLs resolve correctly, including every practice suffix, both contest forms, and the rejections (`leetcode.cn`, `/problemset/`, the three phase-6 platforms)
+- Practice fixture: title, number, difficulty and all three JSON-only tags read from the embedded question JSON, statement split into three sections, no warnings
+- Contest fixture: the same extraction carried entirely by the DOM fallback, with the fallback hits recorded in diagnostics
+- Premium fixture: `isLocked` true, metadata still complete, and **no** "couldn't read the statement" warning ([D027](../decisions.md#d027))
+- All four code layers, in order, including the DOM scrape re-ordering Monaco's absolutely-positioned lines
+- Bridge client refuses a wrong nonce, a wrong origin, a wrong source window, a stale reply and an oversized buffer; silence resolves null rather than hanging
+- Content-script bundle 18 KB with zero React ([D012](../decisions.md#d012)); `world: "MAIN"` still emitted correctly
+
+**Outstanding — user action:**
+
+1. **Capture real fixtures** ([todo.md](../todo.md) #5). The three files in `src/content/platform/__fixtures__/` are hand-built to the shapes documented in [spec.md](../spec.md) §6.3 and §6.6, because a contest page and a Premium page both need a logged-in account to reach. They exercise every code path, but they cannot detect a LeetCode redesign — which is the main thing a fixture is for ([architecture.md](../architecture.md) §12). Replace them with real captures, trimmed and scrubbed the same way, and the suite should still pass unchanged.
+2. **Confirm the selectors and the `localStorage` key shape on a live page** ([todo.md](../todo.md) #6). `SELECTORS` carries a verified-on date of 2026-09-03 that is honest about being derived from documentation rather than observation. The probing approach stands regardless of what the keys turn out to be named.
+3. **Walk the popup readout** over a practice problem, a contest problem and a Premium problem — the phase's stated exit criteria.
 
 ### Additional Notes
 
-- The `localStorage` key shape is an open item ([todo.md](../todo.md) #6). Discover it here, document it in the adapter, and keep the probing approach regardless of what's found — the key name is version-dependent.
-- Premium detection needs a marker that isn't merely "statement missing", or it can't be distinguished from a broken selector — which is the entire point of [D027](../decisions.md).
-- Fixtures captured here set the pattern for Phase 6. Get the trimming and scrubbing conventions right once.
+- The `localStorage` key shape (todo #6) is still open. It is deliberately not load-bearing: nothing hard-codes a key, and `probeLanguage`/`fromSiteStorage` work off whatever is there.
+- Premium detection uses positive evidence only — `isPaidOnly` in the JSON with no content, a lock icon or a `/subscribe` link inside the description region, or the phrase "subscribe to unlock". Never "the statement is missing", which is what makes a paywall distinguishable from a broken selector.
+- The bridge's nonce is honest about what it buys: the MAIN world is the page's own world, so the channel cannot be secret. The nonce separates our traffic from unrelated `postMessage` noise and stale replies; the reason a forged reply is harmless is that every response is validated, capped and treated as an untrusted string.
+- Fixture and trimming convention for phase 6: one file per page kind, a header comment saying what the fixture is *for* and what was scrubbed, keep the statement region and the editor region, drop everything else. Loaded with `?raw` — `vite/client` types are already on, so no `@types/node`.
+- Watch out on Windows: backslashes are eaten by heredocs through the Bash tool here. Regex-heavy edits go through the Edit tool.
 
 ---
 

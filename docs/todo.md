@@ -49,24 +49,24 @@ Items 1 and 3 only bind if you publish. See [spec.md](spec.md) §14.
 
 ## 5. Test fixtures
 
-- [ ] Capture saved HTML per platform (practice + contest)
-- [ ] Wire them into adapter tests
+- [ ] Capture **real** saved HTML per platform (practice + contest, plus Premium on LeetCode)
+- [x] Wire them into adapter tests
 - [ ] Set a refresh schedule
 
 Capture early — they're the only thing that detects a site redesign before users do. [architecture.md](architecture.md) §12.
 
-**Notes:** _—_
+**Notes:** _M2 shipped three LeetCode fixtures in `src/content/platform/__fixtures__/`, but they are **hand-built** to the page shapes documented in [spec.md](spec.md) §6.3 and §6.6 — a contest page and a Premium page both need a logged-in account to reach. They exercise every code path and the suite passes against them, but they cannot detect a redesign, which is the main thing a fixture is for. Replacing them with real captures (trimmed to the statement and editor regions, account markup scrubbed, header comment saying what the fixture is for) should leave the tests passing unchanged — and if it doesn't, that difference is exactly the finding._
 
 ---
 
 ## 6. LeetCode storage key shape
 
-- [ ] Discover during M2
-- [ ] Document in the LeetCode adapter
+- [ ] Confirm on a live page
+- [x] Document in the LeetCode adapter
 
 [spec.md](spec.md) §14.
 
-**Notes:** _—_
+**Notes:** _Deliberately not load-bearing. M2 probes rather than addresses: every `localStorage` key mentioning the slug (or, failing that, the frontend id) is a candidate, and the buffer whose language matches the one open in the editor wins ([D038](decisions.md#d038)). Whatever the keys turn out to be called, the approach stands — so this is now a confirmation, not a blocker._
 
 ---
 
@@ -82,7 +82,7 @@ Capture early — they're the only thing that detects a site redesign before use
 
 - [ ] **M0** Scaffold — Vite + CRXJS + TS + React, manifest, icons, loads unpacked
 - [x] **M1** Core — types, storage, template renderer, `html2md`
-- [ ] **M2** LeetCode adapter — metadata + all four code-capture layers
+- [x] **M2** LeetCode adapter — metadata + all four code-capture layers
 - [ ] **M3** YouTube action — all three trigger surfaces
 - [ ] **M4** Prompt builder + copy-to-clipboard
 - [ ] **M5** ChatGPT injection — banner + clipboard fallback
@@ -92,7 +92,7 @@ Capture early — they're the only thing that detects a site redesign before use
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M0 stays unticked until the four Chrome checks in item 11 are run._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 

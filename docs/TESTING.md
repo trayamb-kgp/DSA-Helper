@@ -72,6 +72,32 @@ Current state. Everything below except the Chrome load is verified automatically
 
 ---
 
+## 3a. Phase 2 acceptance — LeetCode adapter
+
+Automated, against the fixtures in `src/content/platform/__fixtures__/`:
+
+- [x] 20 real LeetCode URLs resolve correctly, including every practice suffix (`/description/`, `/submissions/`, `/solutions/…`, `?envType=…`, `#anchor`), both contest forms, and the rejections (`leetcode.cn`, `/problemset/`, the phase-6 platforms)
+- [x] All URL variants of one problem collapse to a single identity ([D024](decisions.md#d024)); a contest problem stays inside its contest
+- [x] Practice: metadata from the embedded question JSON, statement split into problem / examples / constraints, no warnings
+- [x] Contest: the same extraction carried by the DOM fallback alone, with the fallback hits recorded in diagnostics
+- [x] Premium: `isLocked` true, metadata still complete, and **no** "couldn't read the statement" warning ([D027](decisions.md#d027))
+- [x] All four code layers in order; the DOM scrape re-orders Monaco's absolutely-positioned lines and is flagged as possibly incomplete
+- [x] Bridge refuses a wrong nonce, a wrong origin, a wrong source window, a stale reply, an oversized buffer; silence resolves null rather than hanging ([D020](decisions.md#d020))
+- [x] Constraints keep their exponents — `5 * 10^4` does not become `5 * 104` ([D026](decisions.md#d026))
+- [x] Content-script bundle ~18 KB with no React ([D012](decisions.md#d012))
+
+Manual, on a real logged-in account. Open the popup on each and read the fields:
+
+- [ ] **Practice** (e.g. `/problems/sort-an-array/`) — title, number, difficulty, tags and statement sizes all populated; code shows a source and a length
+- [ ] **Contest** — the same, with Kind reading `Contest`
+- [ ] **Premium** — "Premium problem — statement not available to you", with title, number and difficulty still shown and no warning list
+- [ ] **Code provenance** — with the editor focused and a buffer typed, the reported source is `site storage` or `the editor`, not `the page (visible lines only)`
+- [ ] **Language** — switch the editor to a second language and confirm the reported language follows the visible buffer ([D025](decisions.md#d025))
+- [ ] **Selection fallback** — select text anywhere on the page with no editor buffer and confirm it is picked up as `your selection`
+- [ ] While here, note the actual `localStorage` key shape ([todo.md](todo.md) #6) and whether the fixtures still match the live markup ([todo.md](todo.md) #5)
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.

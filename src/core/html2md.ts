@@ -88,7 +88,12 @@ function escapeText(text: string): string {
 }
 
 function collapseWs(text: string): string {
-  return text.replace(/[\t\r\n ]+/g, ' ');
+  // A non-breaking space is a space here. Sites use `&nbsp;` for layout --
+  // LeetCode spaces its statements with `<p>&nbsp;</p>` -- and keeping it as
+  // its own character litters the prompt with lines that look blank but are
+  // not. Code and maths are protected before this runs, so their spacing is
+  // untouched.
+  return text.replace(/\u00a0/g, ' ').replace(/[\t\r\n ]+/g, ' ');
 }
 
 function longestRun(text: string, ch: string): number {
@@ -176,8 +181,35 @@ function renderPre(el: Element, ctx: Ctx): string {
   return protect(ctx, `${fence}${lang}\n${text}\n${fence}`);
 }
 
+/**
+ * Plain text, except that a nested `<sup>`/`<sub>` keeps its meaning.
+ *
+ * Inline code is where LeetCode puts its bounds -- `1 <= n <= 5 * 10<sup>4</sup>`
+ * -- so reading it as textContent would silently rewrite the constraint (D026).
+ */
+function inlineText(el: Element): string {
+  let out = '';
+  for (const child of Array.from(el.childNodes)) {
+    if (isText(child)) {
+      out += child.nodeValue ?? '';
+      continue;
+    }
+    if (!isElement(child)) continue;
+    const tag = child.tagName.toUpperCase();
+    if (tag === 'SUP' || tag === 'SUB') {
+      const inner = inlineText(child).trim();
+      if (!inner) continue;
+      const marker = tag === 'SUP' ? '^' : '_';
+      out += /^[A-Za-z0-9]$/.test(inner) ? `${marker}${inner}` : `${marker}{${inner}}`;
+      continue;
+    }
+    out += inlineText(child);
+  }
+  return out;
+}
+
 function renderInlineCode(el: Element, ctx: Ctx): string {
-  const text = collapseWs(el.textContent ?? '');
+  const text = collapseWs(inlineText(el));
   if (!text.trim()) return '';
   const ticks = '`'.repeat(longestRun(text, '`') + 1);
   const pad = text.startsWith('`') || text.endsWith('`') ? ' ' : '';
@@ -335,6 +367,19 @@ function convertNode(node: Node, ctx: Ctx): string {
     case 'STRIKE': {
       const inner = convertChildren(el, ctx).trim();
       return inner ? `~~${inner}~~` : '';
+    }
+    // Exponents and indices: the markup is the only record of them, so
+    // dropping it turns `5 * 10<sup>4</sup>` into `5 * 104` -- not a rounder
+    // number but a wrong one, in the constraints, which is the part of a
+    // statement a review must not get wrong (D026). Written the way TeX
+    // writes them, since that is the notation the reader on the other end
+    // already understands, and it sits beside real LaTeX without clashing.
+    case 'SUP':
+    case 'SUB': {
+      const inner = convertChildren(el, ctx).trim();
+      if (!inner) return '';
+      const marker = tag === 'SUP' ? '^' : '_';
+      return /^[A-Za-z0-9]$/.test(inner) ? `${marker}${inner}` : `${marker}{${inner}}`;
     }
     case 'UL':
     case 'OL':
