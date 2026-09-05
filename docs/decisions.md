@@ -2,7 +2,7 @@
 
 **A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
 
-**Last updated:** 2026-09-02
+**Last updated:** 2026-09-03
 
 ---
 
@@ -78,6 +78,8 @@
 | [D042](#d042) | `openInNewTab` governs the YouTube result only | Accepted | 2026-09-03 |
 | [D043](#d043) | Adapter-common code lives in `shared.ts`, not in an adapter | Accepted | 2026-09-03 |
 | [D044](#d044) | Diagnostics report the last extraction, not a live one | Accepted | 2026-09-03 |
+| [D045](#d045) | Entry points are uniquely named, and the built artifact is checked | Accepted | 2026-09-03 |
+| [D046](#d046) | Outward-facing URLs live in one module and degrade to nothing | Accepted | 2026-09-03 |
 
 ---
 
@@ -680,6 +682,46 @@ Decisions taken while building, rather than while designing. They are listed sep
 **Consequences.** One `local` key, overwritten per action, holding one problem's worth of extraction — which includes the user's code, so it is `local` and never `sync` ([D018](#d018)). A user who has never used the extension sees an empty panel, which the copy says plainly. The panel is one action behind if the page has since changed.
 
 **Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §10.4, [spec.md](spec.md) §4.1, [D031](#d031)
+
+<a id="d045"></a>
+### D045 — Entry points are uniquely named, and the built artifact is checked
+
+**Decision.** No two extension entry points may share a file name. `background/index.ts` and `content/platform/index.ts` are renamed to `serviceWorker.ts` and `contentScript.ts`. `tools/check-build.mjs` runs after every build and verifies the emitted `dist/` against the manifest — that the service worker really is the background chunk, that no content script pulls in React, that nothing emitted is unreachable, that the permission set is exactly the declared one. `npm run verify` runs typecheck, tests, build and that check as one command.
+
+**Context.** Found while walking the phase 8 release checklist. CRXJS names each emitted chunk after its entry's *basename* and then rewrites the manifest by looking the entry up under that name. Both entries were called `index.ts`, so both resolved to the same chunk and the content script won: the generated `service-worker-loader.js` imported `contentScript`, and the real background chunk was emitted but referenced by nothing.
+
+Every background listener therefore failed to register — `chrome.commands`, `chrome.contextMenus`, the popup's `RUN_ACTION` handler, `onInstalled` and its migration. Both keyboard shortcuts, the entire right-click menu, all three popup buttons and the badge were inert. This had been true since phase 3, when the background listeners were first written.
+
+**Reasoning.** Nothing in the project could see it. The typecheck passes — the source is correct. All 491 unit tests pass — they import modules directly and never go near a chunk. The build log is clean and prints both chunks at plausible sizes. The popup even opens and reads the problem correctly, because it messages the content script itself and never involves the worker. The only observer that could have caught it is one that reads `dist/` and asks whether the file Chrome is told to load is the file we meant, which nothing did.
+
+That is the general lesson, and it is why the fix is two things rather than one. Renaming the entries removes this instance. It does not remove the class: any future build-tool behaviour that rewrites paths, splits chunks or resolves by name can produce an artifact that disagrees with the source, and no source-level test will ever notice. So the artifact gets its own checks, and they assert identity (is the worker the background code?) rather than existence (did a file get emitted?).
+
+The unique-names rule is kept anyway, as the cheaper of the two defences and the one that reads as intent: `serviceWorker.ts` and `contentScript.ts` say what they are, where two files named `index.ts` said only where they live.
+
+**Alternatives.** Configure `rollupOptions.output.entryFileNames` to include the directory (rejected: fights CRXJS for control of names it also reads back, and the failure mode if the two disagree is this same bug wearing a different hat); rely on the manual smoke matrix to catch it (rejected: it would have — on the first check of phase 0 — but only because a human loaded the extension, and the whole point is that six phases shipped without one); check only the size of the emitted chunks (rejected: both chunks were plausibly sized, which is exactly why the build log looked fine).
+
+**Consequences.** `npm run verify` is the command to run before any commit that touches the build, and before packaging. The build check is the only test in the project that requires a prior `npm run build`, so it lives in `tools/` rather than the Vitest suite, and its failures name the manifest field at fault. `src/conventions.test.ts` additionally asserts the unique-name rule at source level, so the cheap check runs on every test invocation and the expensive one on demand. A dead chunk in `dist/` is now a build failure rather than a curiosity, since an orphan is usually the visible symptom of a wiring bug like this one.
+
+**Status.** Accepted · 2026-09-03 · see [architecture.md](architecture.md) §7, [D012](#d012), [todo.md](todo.md) #11
+
+<a id="d046"></a>
+### D046 — Outward-facing URLs live in one module and degrade to nothing
+
+**Decision.** The repository URL, the issue tracker, the published privacy policy and the contact address are constants in `core/links.ts`, exposed through functions that return `null` while the underlying value is unset. Every consumer renders nothing rather than a dead link. They are compile-time constants, not settings.
+
+**Context.** Phase 8 has to publish a licence, a privacy-policy URL and a contact address, and the options page has carried `const ISSUE_URL: string | null = null` since phase 7 with a comment deferring it. The repository does not exist yet and the contact alias has not been created, so two values are known-unknown at the moment the release documents need them.
+
+**Reasoning.** The alternative is to substitute placeholder strings and fix them at submission, which puts the deadline on human memory at exactly the point where a missed edit ships a `github.com/OWNER/repo` link to every user. Making the absence typed instead makes it structural: the value is `null`, the function returns `null`, the link does not render, and there is nothing to forget. Filling it in later is a one-line change in one file, which is also what makes it safe to defer.
+
+Settings storage was considered and rejected. These describe the project, not the user — they are identical for every install, they must not sync between machines, and a user editing where bug reports go is a phishing vector, not a feature.
+
+The privacy policy points at the repository copy rather than a hosted page because there is no site to host it on, and a policy that lives beside the code it describes cannot silently diverge from it.
+
+**Alternatives.** Environment variables read at build time (rejected: adds a build-config surface, and a missing variable fails at build rather than degrading); leave the values as `TODO` strings (rejected: a string is truthy, so the link renders and points nowhere); put them in `manifest.config.ts` (rejected: the options page cannot read arbitrary manifest fields conveniently, and the manifest is not where prose belongs).
+
+**Consequences.** `pendingReleaseValues()` reports what is still unset, so "we forgot" is answerable by a function rather than by re-reading a checklist. Two items in [todo.md](todo.md) narrow from decisions to substitutions. The About section of the options page and the Diagnostics "Open an issue" button appear only once their values exist, which means the first published build may ship without them — acceptable, because the diagnostics report is still built and still copyable, and the link was only ever a convenience on top.
+
+**Status.** Accepted · 2026-09-03 · see [D031](#d031), [todo.md](todo.md) #1, #4
 
 ---
 

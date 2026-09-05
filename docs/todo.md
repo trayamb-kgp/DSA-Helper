@@ -8,42 +8,42 @@ Pending items. Tick the box when done; add a note underneath if the outcome is w
 
 ## 1. Contact address for the privacy policy
 
-- [ ] Decide which address to publish
-- [ ] Replace the placeholder in [PRIVACY.md](PRIVACY.md) → Contact section
+- [x] Decide which address to publish — **a dedicated alias**, not a personal mailbox
+- [ ] Create the alias
+- [ ] Set `CONTACT_EMAIL` in [`src/core/links.ts`](../src/core/links.ts) and paste the same address into [PRIVACY.md](PRIVACY.md) → Contact
 
-Blocks publishing — the Web Store requires a working contact. Options: personal address, a dedicated alias for store listings, or a public issues URL.
+Still blocks publishing — the Web Store requires a working contact — but it is now a substitution rather than a decision.
 
-**Notes:** _—_
+**Notes:** _Decided 2026-09-03. A dedicated alias over a personal address because a published contact gets scraped permanently and an alias can be abandoned; over an issues-URL-only because the store wants a reachable address. Until it is set, `CONTACT_EMAIL` is `null`, the About section renders no contact line and PRIVACY.md carries a visible `CONTACT_EMAIL_PENDING` marker rather than a plausible-looking wrong address ([D046](decisions.md#d046))._
 
 ---
 
 ## 2. Effective date for the privacy policy
 
-- [ ] Set the `Effective date` in [PRIVACY.md](PRIVACY.md) on publication day
+- [x] Set the `Effective date` in [PRIVACY.md](PRIVACY.md)
 
-**Notes:** _—_
+**Notes:** _Set to **3 September 2026**, the date the policy was adopted, rather than left for publication day. The policy binds from the moment anyone can read it, and the repository going public is that moment — waiting for store approval would leave it unfalsifiable in the window where it is already published. If submission slips, an earlier date is harmless: it means the policy has been in force longer._
 
 ---
 
 ## 3. Licence
 
-- [ ] Choose a licence
-- [ ] Add a `LICENSE` file
-- [ ] Update the Licence section of [README.md](../README.md)
+- [x] Choose a licence — **MIT**
+- [x] Add a `LICENSE` file
+- [x] Update the Licence section of [README.md](../README.md)
 
-Blocks the repo going public. With no licence the default is all rights reserved — nobody can legally fork or contribute.
-
-**Notes:** _—_
+**Notes:** _Done 2026-09-03. MIT over Apache 2.0 (no patent surface worth the extra length here) and over GPL (no reason to constrain anyone building on it). `package.json` carries `"license": "MIT"`; `private: true` stays, since that only guards against an accidental npm publish and has nothing to do with the licence._
 
 ---
 
 ## 4. Distribution
 
-- [ ] Decide: unpacked install only, or publish to the Chrome Web Store
+- [x] Decide: unpacked install only, or publish to the Chrome Web Store — **Web Store**, with the source public on GitHub
+- [ ] Create the repository and set `REPO_SLUG` in [`src/core/links.ts`](../src/core/links.ts)
 
-Items 1 and 3 only bind if you publish. See [spec.md](spec.md) §14.
+Setting `REPO_SLUG` resolves three things at once: the issue-tracker link in the diagnostics panel, the privacy-policy URL the store form requires, and the About links in options ([D046](decisions.md#d046)).
 
-**Notes:** _—_
+**Notes:** _Decided 2026-09-03. Because it is going to the store, items 1 and 3 do bind, and [STORE-LISTING.md](STORE-LISTING.md) now carries the copy, the per-permission justifications and the submission checklist._
 
 ---
 
@@ -88,11 +88,11 @@ Capture early — they're the only thing that detects a site redesign before use
 - [x] **M5** ChatGPT injection — banner + clipboard fallback
 - [x] **M6** Codeforces, CodeChef, GeeksforGeeks adapters
 - [x] **M7** Options page + history
-- [ ] **M8** Polish — README statements, icons, ready to package
+- [x] **M8** Polish — README statements, icons, ready to package
 
 Detail in [spec.md](spec.md) §13.
 
-**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M6 done 2026-09-03 — 454 tests, all four platforms, content script 27 KB, dist 298 KB. M7 done 2026-09-03 — 491 tests, dist 327 KB; the options page is the first substantial UI and none of its rendering is test-covered, so it needs eyes. M0 stays unticked until the four Chrome checks in item 11 are run; M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
+**Notes:** _M1 done 2026-09-03 — 124 unit tests, typecheck and build clean. M2 done 2026-09-03 — 225 tests total, content-script bundle 18 KB with no React. M3 done 2026-09-03 — 301 tests, service-worker chunk 4.9 KB. M4 done 2026-09-03 — 346 tests; a generated prompt still needs pasting into ChatGPT by hand to judge quality (item 11). M5 done 2026-09-03 — 383 tests, ChatGPT content script 3.2 KB, dist 290 KB; the deliberately-broken-selector check is the one that still needs a browser. M6 done 2026-09-03 — 454 tests, all four platforms, content script 27 KB, dist 298 KB. M7 done 2026-09-03 — 491 tests, dist 327 KB; the options page is the first substantial UI and none of its rendering is test-covered, so it needs eyes. M8 done 2026-09-03 — 516 tests, dist 273 KB, `npm run verify` green end to end. M8 found the one bug that mattered: the emitted service worker was the content script, so no shortcut, menu or popup button had worked since phase 3 ([D045](decisions.md#d045)). M0 stays unticked until the Chrome checks in item 11 are run — and the first of them would have caught that in phase 0. M2's own manual walk-through (practice, contest, Premium) is tracked in the phase 2 Track section._
 
 ---
 
@@ -100,9 +100,9 @@ Detail in [spec.md](spec.md) §13.
 
 - [x] `TESTING.md` — the manual smoke matrix promised in [architecture.md](architecture.md) §12
 - [x] `CHANGELOG.md`
-- [ ] Store listing copy + permission justifications
+- [x] Store listing copy + permission justifications
 
-**Notes:** _TESTING.md and CHANGELOG.md created early (2026-09-03) rather than at M8, so they can be maintained phase by phase instead of reconstructed at the end. Store listing copy still belongs at M8._
+**Notes:** _TESTING.md and CHANGELOG.md created early (2026-09-03) rather than at M8, so they can be maintained phase by phase instead of reconstructed at the end. Store listing copy landed at M8 as [STORE-LISTING.md](STORE-LISTING.md) — identity, detailed description, single-purpose statement, per-permission justifications, the data-usage answers, a screenshot plan and the submission checklist._
 
 ---
 
@@ -122,6 +122,8 @@ Each names its own trigger in [decisions.md](decisions.md). None needs action be
 ## 11. Verify in Chrome
 
 Everything below is automated-green but needs a real browser to confirm.
+
+**Phase 8 — the build wiring** ([TESTING.md](TESTING.md) §3g): **run this first.** Six checks that were broken in every build from phase 3 to phase 7 while the whole automated suite stayed green ([D045](decisions.md#d045)) — context menu present, both shortcuts live, all three popup buttons working, no service-worker console errors.
 
 **Phase 0 — the scaffold:**
 

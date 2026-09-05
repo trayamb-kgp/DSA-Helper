@@ -2,6 +2,7 @@
   "name": "dsa-helper",
   "version": "0.1.0",
   "description": "From a DSA problem page to a YouTube search or a ready-to-send ChatGPT review, in one keystroke.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +10,9 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:build": "node tools/check-build.mjs",
+    "verify": "npm run typecheck && npm run test && npm run build && npm run check:build"
   },
   "dependencies": {
     "react": "^19.2.8",

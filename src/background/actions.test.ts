@@ -11,6 +11,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProblemContext, Settings } from '../core/types';
+import { PLATFORM_LABELS } from '../core/types';
 import { DEFAULT_SETTINGS } from '../core/storage';
 
 interface Injected {
@@ -281,7 +282,12 @@ describe('runAction — degrading, never dead-ending (D016)', () => {
     await runAction('youtube', tab({ url: 'https://example.com/', title: 'Example' }));
 
     expect(fake.created).toHaveLength(0);
-    expect(toastTexts(fake).join(' ')).toContain('LeetCode problem pages');
+    // Names every platform it actually supports. The literal this used to
+    // assert said "LeetCode problem pages" and stayed true-looking for three
+    // phases after three more platforms shipped, so the assertion is on the
+    // property now: whatever the sentence says, it lists all of them.
+    const said = toastTexts(fake).join(' ');
+    for (const label of Object.values(PLATFORM_LABELS)) expect(said).toContain(label);
   });
 
   it('falls back to the badge when the page refuses injection', async () => {
@@ -388,7 +394,7 @@ describe('runAction — the clipboard action (spec §7.3)', () => {
     expect(fake.injected.every((entry) => typeof entry.args[1] === 'string')).toBe(true);
   });
 
-  it('returns the prompt instead of writing it when the popup asks (D040)', async () => {
+  it('returns the prompt instead of writing it when the popup asks (D041)', async () => {
     fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'int main() {}' }) };
     const { runAction } = await load();
     const prompt = await runAction('copyPrompt', tab(), { returnPrompt: true });

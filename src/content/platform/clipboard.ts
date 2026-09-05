@@ -3,7 +3,7 @@
  *
  * Service workers have no clipboard, so the write happens in a document. Which
  * document depends on which surface fired the action, and that is not a
- * preference (D040):
+ * preference (D041):
  *
  *   - popup: the popup writes it itself. While the popup is open the page is
  *     not the focused document, and `navigator.clipboard.writeText` throws

@@ -8,7 +8,24 @@ import { PROBLEM_PAGE_PATTERNS } from './src/core/urls';
  */
 const PROBLEM_PAGES = [...PROBLEM_PAGE_PATTERNS];
 
-
+/**
+ * ---------------------------------------------------------------------------
+ * EVERY ENTRY POINT BELOW MUST HAVE A UNIQUE FILE NAME.
+ *
+ * CRXJS names each emitted chunk after its entry's *basename*, then rewrites
+ * the manifest by looking the entry up by that name. Two entries called
+ * `index.ts` therefore resolve to the same chunk, and one of them silently
+ * wins: before the rename, `background/index.ts` and `content/platform/
+ * index.ts` collided, the generated `service-worker-loader.js` imported the
+ * content script, and none of the background listeners -- commands, context
+ * menus, `RUN_ACTION`, `onInstalled` -- were ever registered. The build was
+ * clean and the popup still opened, so nothing caught it (D045).
+ *
+ * `tools/check-build.mjs` now asserts the emitted service worker really is the
+ * background code. Keep the names distinct anyway; the check is the net, not
+ * the rule.
+ * ---------------------------------------------------------------------------
+ */
 export default defineManifest({
   manifest_version: 3,
   name: 'DSA Helper',
@@ -31,7 +48,7 @@ export default defineManifest({
   options_page: 'src/options/index.html',
 
   background: {
-    service_worker: 'src/background/index.ts',
+    service_worker: 'src/background/serviceWorker.ts',
     type: 'module',
   },
 
@@ -50,7 +67,7 @@ export default defineManifest({
   content_scripts: [
     {
       matches: PROBLEM_PAGES,
-      js: ['src/content/platform/index.ts'],
+      js: ['src/content/platform/contentScript.ts'],
       run_at: 'document_idle',
     },
     {

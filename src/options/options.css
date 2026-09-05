@@ -266,3 +266,29 @@ code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
+
+/* Shortcut table: a plain two-column readout, no borders of its own beyond
+   the row rule the diagnostics table already establishes. */
+.shortcuts {
+  border-collapse: collapse;
+  margin-bottom: 12px;
+}
+
+.shortcuts td {
+  padding: 4px 24px 4px 0;
+  vertical-align: middle;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1em;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  line-height: 1.3;
+}

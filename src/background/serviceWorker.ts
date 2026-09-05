@@ -147,7 +147,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // A message with no `sender.tab` came from an extension page -- the popup.
   // That surface writes the clipboard itself, because the page is not the
-  // focused document while the popup is open (D040).
+  // focused document while the popup is open (D041).
   const returnPrompt = message.action === 'copyPrompt' && sender.tab === undefined;
 
   void resolveTab()

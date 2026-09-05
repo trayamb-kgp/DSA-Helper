@@ -8,6 +8,7 @@
  */
 
 import type { ActionId, Msg, ProblemContext, Settings, ToastLevel } from '../core/types';
+import { PLATFORM_LABELS } from '../core/types';
 import {
   getHistory,
   getSettings,
@@ -56,10 +57,21 @@ export function forgetTab(tabId: number): void {
   }
 }
 
-const UNSUPPORTED =
-  'DSA Helper works on LeetCode problem pages. Open one and try again.';
+/**
+ * Built from the platform table rather than written out, because the version
+ * that was written out said "LeetCode problem pages" for three phases after
+ * three more platforms shipped. A list of supported sites that lives next to
+ * the list of supported sites cannot drift.
+ */
+const UNSUPPORTED = `DSA Helper works on problem pages: ${listOf(
+  Object.values(PLATFORM_LABELS),
+)}. Open one and try again.`;
 
-const NOT_YET: Partial<Record<ActionId, string>> = {};
+/** "a, b, c and d" — the toast is prose, not a data dump. */
+function listOf(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
 
 const NO_CONTEXT =
   "Couldn't read this problem, so there's nothing to build a prompt from.";
@@ -302,7 +314,7 @@ async function runCopyPrompt(tabId: number): Promise<void> {
   }
 
   // The page is the focused document for the command and menu routes, so the
-  // write happens there (D040). The popup route never reaches this function.
+  // write happens there (D041). The popup route never reaches this function.
   if (await copyFromPage(tabId, built.prompt)) {
     await showToast(tabId, 'info', built.note);
     return;
@@ -316,7 +328,7 @@ export interface RunOptions {
    *
    * Set by the popup, which has to do its own clipboard write: while it is
    * open the page is not the focused document and `writeText` refuses there
-   * (D040). Everything before delivery is the same code either way.
+   * (D041). Everything before delivery is the same code either way.
    */
   returnPrompt?: boolean;
 }
@@ -338,12 +350,6 @@ export async function runAction(
 
   if (!platformForUrl(url)) {
     await showToast(tabId, 'info', UNSUPPORTED);
-    return null;
-  }
-
-  const pending = NOT_YET[action];
-  if (pending) {
-    await showToast(tabId, 'info', pending);
     return null;
   }
 

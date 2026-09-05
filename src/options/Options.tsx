@@ -32,18 +32,18 @@ import { buildPrompt } from '../core/prompt';
 import { buildQuery, varsFromContext } from '../core/youtube';
 import { buildReport, fieldReports } from '../core/diagnostics';
 import { applyTheme, THEMES, type Theme } from '../core/theme';
+import { CONTACT_EMAIL, issueUrl, privacyUrl } from '../core/links';
 import { copyInPage } from '../content/platform/clipboard';
 
-/**
- * Where a broken-page report should be filed.
- *
- * Null until the repository is public and its URL is settled (todo.md #3, #4).
- * Until then the button still builds the blob and puts it on the clipboard,
- * which is the part that matters — the link is a convenience on top.
- */
-const ISSUE_URL: string | null = null;
-
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
+
+/**
+ * Both are null until their one-line values are filled in (core/links.ts).
+ * Every use below renders nothing rather than a dead link — the report is
+ * still built and still copyable, which is the part that matters.
+ */
+const ISSUE_URL = issueUrl();
+const PRIVACY_URL = privacyUrl();
 
 /** A bundled problem to preview templates against before anything is captured. */
 const SAMPLE: ProblemContext = {
@@ -445,10 +445,31 @@ export function Options() {
       </Section>
 
       <Section title="Shortcuts">
+        <table className="shortcuts">
+          <tbody>
+            <tr>
+              <td>Search YouTube</td>
+              <td>
+                <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>Y</kbd>
+              </td>
+            </tr>
+            <tr>
+              <td>Ask ChatGPT</td>
+              <td>
+                <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd>
+              </td>
+            </tr>
+            <tr>
+              <td>Copy prompt</td>
+              <td className="muted">not bound</td>
+            </tr>
+          </tbody>
+        </table>
         <p className="muted">
-          Chrome allows only two suggested shortcuts, so <code>Copy prompt</code> ships unbound.
-          Set it, or change the others, at <code>chrome://extensions/shortcuts</code> — Chrome does
-          not allow an extension to open that page for you, so copy the address.
+          <code>Copy prompt</code> ships unbound on purpose — there is no third combination that
+          is safe to claim on every keyboard layout, so the choice is yours. Set it, or change the
+          other two, at <code>chrome://extensions/shortcuts</code>. Chrome does not let an
+          extension open that page for you, so copy the address and paste it into the address bar.
         </p>
         <CopyButton text="chrome://extensions/shortcuts" label="Copy that address" />
       </Section>
@@ -463,6 +484,17 @@ export function Options() {
           Settings and templates sync between Chrome installs you are signed in to. History stays on
           this computer.
         </p>
+        {(PRIVACY_URL || CONTACT_EMAIL) && (
+          <p className="muted">
+            {PRIVACY_URL && (
+              <a href={PRIVACY_URL} target="_blank" rel="noreferrer">
+                Privacy policy
+              </a>
+            )}
+            {PRIVACY_URL && CONTACT_EMAIL ? ' · ' : null}
+            {CONTACT_EMAIL && <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>}
+          </p>
+        )}
       </Section>
     </main>
   );

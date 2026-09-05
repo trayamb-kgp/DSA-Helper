@@ -100,7 +100,7 @@ export type Msg =
   | { type: 'CLAIM_PENDING_PROMPT' }
   /**
    * Reply to a RUN_ACTION of 'copyPrompt' sent from the popup, which has to do
-   * its own clipboard write (D040). `prompt` is null when there was nothing to
+   * its own clipboard write (D041). `prompt` is null when there was nothing to
    * build one from; the worker has already said so.
    */
   | { type: 'PROMPT_RESULT'; prompt: string | null }

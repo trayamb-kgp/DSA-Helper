@@ -10,25 +10,40 @@ How this extension is verified. Automated checks catch regressions in pure logic
 
 ## 1. Automated checks
 
-Run all three before every commit; all three must pass before a release.
+One command runs everything, in the order that fails fastest:
 
 ```bash
-npm run typecheck
+npm run verify
 ```
 
-```bash
-npm test
-```
-
-```bash
-npm run build
-```
+That is `typecheck` → `test` → `build` → `check:build`. Run it before every commit; it must pass before a release. The four steps are also available individually (`npm run typecheck`, `npm test`, `npm run build`, `npm run check:build`) — the last one needs a build to already exist.
 
 | Layer | Tool | Covers |
 |---|---|---|
 | Unit | Vitest, plain Node | `src/core/` — template rendering, `html2md`, truncation order, migrations, history semantics, URL resolver |
 | Adapter | Vitest + jsdom + saved HTML fixtures | Each platform adapter against real captured pages, practice and contest |
 | Contract | Vitest | Message-shape validation — every `Msg` variant round-trips |
+| Conventions | Vitest, `src/conventions.test.ts` | Project-wide invariants: no network API anywhere ([D010](decisions.md)), no user-facing string says *question* ([D023](decisions.md)), no two entry points share a file name ([D045](decisions.md)) |
+| **Artifact** | `tools/check-build.mjs` | The built `dist/`, against the manifest — see below |
+
+### 1.1 Why the artifact is checked separately
+
+Everything above reads the **source**. The build check reads what Chrome actually loads, and it exists because those are not the same thing.
+
+Two entry modules were both named `index.ts`. CRXJS resolves chunks by basename, so the generated service worker imported the content script and the real background chunk was emitted but referenced by nothing — no keyboard shortcut, no context menu, no popup button and no migration ever ran. The typecheck passed. All 491 tests passed. The build log was clean and listed both chunks at plausible sizes. The popup still opened and still read the problem correctly, because it messages the content script directly.
+
+Six phases shipped that way. Nothing that reads source could have seen it ([D045](decisions.md)).
+
+So `npm run check:build` asserts things about `dist/` that no unit test can:
+
+- the file the manifest names as the service worker really is the background entry, and still registers `onInstalled`, `contextMenus`, `onCommand` and `onMessage`
+- no content script or the worker pulls in React ([D012](decisions.md))
+- each entry's transitive closure is within its load-cost budget ([architecture.md](architecture.md) §7)
+- nothing is emitted that nothing loads — an orphan chunk is usually the visible symptom of a wiring bug
+- no first-party chunk contains a network API ([D010](decisions.md))
+- the permission set is exactly the declared one, with no broad host match ([spec.md](spec.md) §10)
+
+If it ever fails, read the failing line before rebuilding: every one of them names a real disagreement between what the source says and what was emitted.
 
 Adapter tests opt into jsdom per file:
 
@@ -88,7 +103,7 @@ npm run build
 ```
 
 1. `chrome://extensions` → **Developer mode** on → **Load unpacked** → select `dist/`.
-2. Open `chrome://extensions/shortcuts` and **bind `copy-prompt`** — it ships unbound, because Chrome allows only four suggested keys. Confirm `Alt+Shift+Y` and `Alt+Shift+G` are listed.
+2. Open `chrome://extensions/shortcuts` and **bind `copy-prompt`** — it ships unbound on purpose (Chrome permits four suggested keys; we claim two, and leave the third to you). Confirm `Alt+Shift+Y` and `Alt+Shift+G` are listed.
 3. Pin the extension to the toolbar, so the badge is visible.
 
 **Round 0 — does it load at all?** (§3, ~2 min)
@@ -311,6 +326,40 @@ Manual, in a real Chrome. **This section matters more than the others:** the opt
 
 ---
 
+## 3g. Phase 8 acceptance — polish and release
+
+Short, because most of phase 8 is the matrix in §4. These are the things phase 8 *changed*, and the one that matters is the first.
+
+**The build wiring — do this first, it invalidates everything else if it fails.**
+
+- [ ] `npm run verify` passes end to end
+- [ ] Load `dist/` unpacked. On the extension card, the **service worker** link opens a console with **no errors**
+- [ ] In that console, run `chrome.contextMenus` — it should be defined, not `undefined`
+- [ ] Right-click on a problem page: the DSA Helper menu **appears**. Before phase 8 it did not, on any build
+- [ ] `Alt+Shift+Y` on a problem page opens a search. Before phase 8 it did nothing
+- [ ] All three popup buttons do something. Before phase 8 none of them did
+
+> These six are not paranoia. Every one of them was broken in every build from phase 3 to phase 7, and the automated suite was green throughout ([D045](decisions.md)). If any fails, the emitted service worker is wrong again — check `dist/service-worker-loader.js` and see which chunk it imports.
+
+**Strings.**
+
+- [ ] Trigger an action on a page that is not a problem — say `example.com`. The toast names **all four** platforms, not just LeetCode
+- [ ] Options → Shortcuts shows the two bound keys in a table and says `Copy prompt` is unbound
+- [ ] Options → About shows no Privacy policy link and no contact address — correct until `REPO_SLUG` and `CONTACT_EMAIL` are set ([D046](decisions.md)). Once they are, both appear and both resolve
+- [ ] Options → Diagnostics shows no "Open an issue" button, same reason
+
+**Themes.** The options page has no test coverage of its rendering, and phase 8 added a table to it.
+
+- [ ] Options page in Light, Dark, and Match-my-system, with the OS in each mode — six combinations. The `kbd` keys in the Shortcuts table must stay legible in all of them
+- [ ] Popup in the same six. Check the history list and the warning line, which use the accent colours
+
+**Package hygiene.**
+
+- [ ] `dist/` contains no `.map` files and no fixtures
+- [ ] `dist/manifest.json` version matches `package.json`
+
+---
+
 ## 4. Manual smoke matrix
 
 From phase 3 onward, run in full before every release. 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions.
@@ -364,8 +413,10 @@ Against the budgets in [architecture.md](architecture.md) §7:
 
 ## 5. Release checklist
 
-- [ ] All three automated checks pass
-- [ ] Full smoke matrix passes
+The full submission checklist — store copy, permission justifications, screenshots, rollout — lives in [STORE-LISTING.md](STORE-LISTING.md) §8. This is the testing half of it.
+
+- [ ] `npm run verify` passes — typecheck, tests, build, and the checks against `dist/`
+- [ ] Full smoke matrix passes **against a packaged build**, not a dev build
 - [ ] Every edge case in §4 verified
 - [ ] [CHANGELOG.md](CHANGELOG.md) updated, `[Unreleased]` cut to a version
 - [ ] Version bumped in `manifest.config.ts` and `package.json`

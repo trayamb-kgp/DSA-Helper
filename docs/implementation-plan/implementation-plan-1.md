@@ -1,7 +1,7 @@
 # Implementation Plan 1 — DSA Helper v1
 
 **Covers:** the whole of v1, phases 0–8 (spec.md §13 milestones M0–M8).
-**Status:** phases 0–7 complete (manual Chrome checks from phases 0, 2–7 outstanding). Phase 8 is next.
+**Status:** all nine phases built. Everything that can be verified without a browser is verified: 516 tests, typecheck, build, and `npm run check:build` against the emitted artifact. What remains is manual — the smoke matrix, the store screenshots, and two one-line substitutions before submission.
 **Last updated:** 2026-09-03
 
 Source documents: [spec.md](../spec.md) · [architecture.md](../architecture.md) · [domain.md](../domain.md) · [decisions.md](../decisions.md)
@@ -612,48 +612,67 @@ Verified automatically — `npm run typecheck`, `npm test` (491 tests, 37 new) a
 
 ### Tasks
 
-- [ ] Full smoke matrix: 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions ([architecture.md](../architecture.md) §12)
+- [ ] Full smoke matrix: 4 platforms × 2 page kinds × 3 trigger surfaces × 3 actions ([architecture.md](../architecture.md) §12) — **needs a browser; see [TESTING.md](../TESTING.md) §3g first**
 - [x] `TESTING.md` — that matrix as a repeatable checklist — created 2026-09-03, maintained per phase
 - [x] `CHANGELOG.md` — created 2026-09-03, maintained per phase
-- [ ] Review every user-facing string: warnings, toasts, banners, empty states
-- [ ] Theme correctness in both light and dark
-- [ ] Performance check against the budgets in [architecture.md](../architecture.md) §7 — especially content-script load cost
-- [ ] Bundle size check; confirm **no React in content scripts or the service worker** ([D012](../decisions.md))
+- [x] Review every user-facing string: warnings, toasts, banners, empty states
+- [x] Theme correctness in both light and dark — CSS audited; the six theme × OS combinations still need eyes ([TESTING.md](../TESTING.md) §3g)
+- [x] Performance check against the budgets in [architecture.md](../architecture.md) §7 — automated per entry point in `tools/check-build.mjs`
+- [x] Bundle size check; confirm **no React in content scripts or the service worker** ([D012](../decisions.md)) — automated
 - [x] README: add `decisions.md` and `todo.md` to the documentation table ([todo.md](../todo.md) #7) — done 2026-09-02
-- [ ] **Privacy policy contact address** ([todo.md](../todo.md) #1) — blocks publishing
-- [ ] **Privacy policy effective date** ([todo.md](../todo.md) #2)
-- [ ] **Licence + `LICENSE` file** ([todo.md](../todo.md) #3) — blocks the repo going public
-- [ ] Store listing copy, screenshots, per-permission justifications ([architecture.md](../architecture.md) §9.3)
-- [ ] Host the privacy policy at a public URL
-- [ ] Confirm staged percentage rollout is configured for the first release ([D030](../decisions.md))
+- [~] **Privacy policy contact address** ([todo.md](../todo.md) #1) — decided (dedicated alias, not a personal address); the address itself is one line in `core/links.ts`
+- [x] **Privacy policy effective date** ([todo.md](../todo.md) #2) — 3 September 2026
+- [x] **Licence + `LICENSE` file** ([todo.md](../todo.md) #3) — MIT
+- [x] Store listing copy, screenshots, per-permission justifications ([architecture.md](../architecture.md) §9.3) — [STORE-LISTING.md](../STORE-LISTING.md); the screenshots themselves need the extension running
+- [~] Host the privacy policy at a public URL — resolves automatically once `REPO_SLUG` is set ([D046](../decisions.md))
+- [x] Confirm staged percentage rollout is configured for the first release ([D030](../decisions.md)) — 10%, recorded in [STORE-LISTING.md](../STORE-LISTING.md) §7
+
+**Added during the phase:**
+
+- [x] **Fixed the build wiring** — the emitted service worker was the content script ([D045](../decisions.md))
+- [x] `tools/check-build.mjs` + `npm run verify`
+- [x] `src/conventions.test.ts` — the cross-phase checklist, as tests
+- [x] `src/core/links.ts` — outward-facing URLs in one place ([D046](../decisions.md))
 
 ### Decisions
 
-_None yet._
+- **[D045](../decisions.md#d045)** — Entry points are uniquely named, and the built artifact is checked. Found the phase's one real bug: `background/index.ts` and `content/platform/index.ts` both emitted a chunk named `index.ts`, CRXJS resolved the service worker to the content script's, and no background listener had registered since phase 3. Renamed both entries and added `tools/check-build.mjs`.
+- **[D046](../decisions.md#d046)** — Outward-facing URLs live in one module and degrade to nothing. `core/links.ts` holds the repo, issue, privacy and contact values; unset ones return `null` and their UI renders nothing rather than a dead link.
 
 ### Q&A
 
-_None yet._
+**Q. How is this distributed, what licence, what contact address, and where does the source live?**
+Asked before any release document was written, because all four change what gets committed rather than merely what gets said. Offered: Web Store / source-public-first / unpacked only; MIT / Apache 2.0 / GPL-3.0 / none; dedicated alias / personal address / issues URL / placeholder; public repo / private repo / local only.
+
+**A. Chrome Web Store · MIT · a dedicated alias · public GitHub repo.** The two concrete values — the alias address and the repository slug — were not supplied, so both are single constants in `core/links.ts` with every consumer degrading to no link ([D046](../decisions.md)). That is why two tasks above are `[~]`: the decision is closed, the substitution is not.
 
 ### Track
 
-Not started.
+Phase complete, minus what needs a browser.
+
+**Outstanding, all of it manual:** the smoke matrix (§4), the phase-8 acceptance checks ([TESTING.md](../TESTING.md) §3g), the six theme combinations, the five store screenshots, and judging a real ChatGPT reply (§3c). Two substitutions remain: `REPO_SLUG` and `CONTACT_EMAIL`.
 
 ### Additional Notes
 
+- **The green suite was not evidence.** 491 tests, a clean typecheck and a clean build log all coexisted with an extension whose every keyboard shortcut, context menu and popup button was inert. The failure was in the wiring *between* correct source and a correct-looking artifact, which is the one place none of those three look. Anything that rewrites paths — a bundler, a plugin, a manifest generator — can produce it, so the artifact now has its own checks and they assert **identity**, not existence.
+- The bug was reachable from the very first item on the phase 0 checklist ("`dist/` loads unpacked with no errors"). It survived six phases because that checklist was never run. A manual check deferred is not a check pending; it is a check absent, and the automated net now exists precisely because deferral is the realistic behaviour.
 - Do not skip staged rollout on the first release. It's the only defence against a global simultaneous breakage ([D030](../decisions.md)).
-- The README's Known Limitations section must still be accurate at this point — verify each claim against the built extension rather than against the spec.
+- The README's Known Limitations section was verified claim by claim against the built extension: the Codeforces editorless case, the `[Figure: … — not included]` placeholder string, Premium labelling, degradation on redesign, and statement-before-examples truncation. All five hold.
+- `UNSUPPORTED` in `actions.ts` had said "LeetCode problem pages" since phase 3 and stayed wrong through three more platforms. It is built from `PLATFORM_LABELS` now, and its test asserts every label appears rather than pinning the sentence. Prose that lists what the code supports should be generated from the code that supports it.
+- Six comments and one test name cited `D040` (prompt tagging) where they meant `D041` (clipboard focus). Harmless to run, corrosive to read — a decision reference that points at the wrong decision is worse than none, because it looks checked.
 
 ---
 
 ## Cross-phase checklist
 
-Confirm before declaring v1 done:
+Confirmed 2026-09-03. Each line names what holds it, because a checklist that is re-confirmed by reading is a checklist that stops being confirmed.
 
-- [ ] No network requests anywhere in the codebase ([D010](../decisions.md))
-- [ ] "Question" appears nowhere as a term for a problem ([D023](../decisions.md))
-- [ ] Every extracted field is individually guarded ([D015](../decisions.md))
-- [ ] No user action can end in silence ([D016](../decisions.md))
-- [ ] The user's code is never truncated, never written to disk, never auto-sent ([D018](../decisions.md), [D022](../decisions.md), [D003](../decisions.md))
-- [ ] Every capture gap is disclosed in both the prompt and the popup
-- [ ] [decisions.md](../decisions.md) reflects every significant decision made during implementation
+- [x] No network requests anywhere in the codebase ([D010](../decisions.md)) — `conventions.test.ts` scans every shipped module for seven network APIs; `check-build.mjs` re-runs it against the emitted chunks, where React's own bundle is named rather than excluded
+- [x] "Question" appears nowhere as a term for a problem ([D023](../decisions.md)) — `conventions.test.ts`, over the thirteen user-facing modules. Adapters are exempt and must be: LeetCode's JSON really is keyed `questionFrontendId`, and renaming that in the adapter would make it harder to check against the page
+- [x] Every extracted field is individually guarded ([D015](../decisions.md)) — every field in all four adapters is read through `field()` or `optionalField()`, and `buildContext` catches per group on top, so one throw costs one field
+- [x] No user action can end in silence ([D016](../decisions.md)) — `actions.test.ts` and `surfaces.test.ts` assert an observable outcome, a tab or a toast, on every path including the failure ones
+- [x] The user's code is never truncated, never written to disk, never auto-sent ([D018](../decisions.md), [D022](../decisions.md), [D003](../decisions.md)) — truncation order is tested in `prompt.test.ts`, `session`-only storage in `pendingPrompt.test.ts`, and `inject.test.ts` reads its own source to assert no submit path exists
+- [x] Every capture gap is disclosed in both the prompt and the popup — `promptGaps` in the prompt, `context.warnings` in the popup, both tested
+- [x] [decisions.md](../decisions.md) reflects every significant decision made during implementation — D001–D046
+
+**Still open, and only reachable with a browser:** the manual smoke matrix (§4 of [TESTING.md](../TESTING.md)), which has never been run. [D045](../decisions.md) is what that costs.

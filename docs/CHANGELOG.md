@@ -10,6 +10,8 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 ### Added
 
+- **Ready to publish** (2026-09-03) — MIT licensed, with a privacy policy that now carries an effective date, and a full Chrome Web Store listing written out: description, single-purpose statement, a justification for every permission, the data-usage answers, a screenshot plan and a submission checklist. One command, `npm run verify`, runs the typecheck, the tests, the build and a set of checks against the built extension itself.
+
 - **Settings, history and diagnostics** (2026-09-03) — the options page is real. Both templates are editable, resettable and copyable, with a live preview of what they produce and a warning before a template grows too large to sync. Behaviour toggles, a size cap for the prompt, and light/dark/system themes. The popup now keeps a list of problems you have used it on — one entry per problem, most recent first, with a pause switch that stops recording without erasing what is there. And a diagnostics panel that shows exactly what the extension could and could not read on the last problem, with a one-click report you can paste into an issue: it carries the page's URL shape and which fields failed, and **never your code or the problem text**.
 
 - **Codeforces, CodeChef and GeeksforGeeks** (2026-09-03) — all four platforms now work. Codeforces reads its statement, rating and samples, keeps the LaTeX exactly as written, and passes Russian statements through untouched; its problem pages have no editor, so no code is captured there and the extension says that is normal rather than reporting a fault. CodeChef and GeeksforGeeks read their statements, difficulty and tags, and capture code from the editor. GeeksforGeeks problems have no number, so searches use the title alone.
@@ -27,6 +29,12 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 - **Documentation set** (2026-09-01 – 2026-09-02) — [spec.md](spec.md), [architecture.md](architecture.md), [domain.md](domain.md), [decisions.md](decisions.md), [todo.md](todo.md), [PRIVACY.md](PRIVACY.md), [TESTING.md](TESTING.md) and the [implementation plan](implementation-plan/implementation-plan-1.md).
 - **Placeholder icons** — generated locally by `tools/gen-placeholder-icons.py`, no third-party licence attached ([D009](decisions.md)).
 
+### Fixed
+
+- **Nothing outside the popup actually worked** (2026-09-03) — the keyboard shortcuts, the right-click menu and all three popup buttons had been inert in every build since the YouTube action shipped. Two source files were both named `index.ts`, and the build tool, which names each output after its file, wired the extension's background worker to the wrong one of them — so the part that listens for a shortcut was never loaded. Only the popup's own reading of the page still worked, which is why it looked alive. Fixed by renaming the files, and by adding checks that inspect the built extension rather than the source, so this cannot happen quietly again.
+- **A message that named one site out of four** (2026-09-03) — triggering an action somewhere unsupported said the extension works on "LeetCode problem pages". It has worked on Codeforces, CodeChef and GeeksforGeeks since well before this. The message is now built from the list of supported sites, so it cannot fall behind again.
+- **The settings page claimed a limit Chrome does not impose** (2026-09-03) — it said Chrome allows only two suggested shortcuts, which is why `Copy prompt` ships unbound. Chrome allows four; the third is left to you on purpose, because no third combination is safe to claim on every keyboard layout. The section now shows the current bindings in a table and says so.
+
 ### Notes
 
 - Maths in problem statements is carried through verbatim, and figures that cannot travel in a text prompt are named rather than dropped ([D026](decisions.md), [D035](decisions.md)).
@@ -35,4 +43,4 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 - Removing the extension erases everything it stores ([D029](decisions.md)). The options page says so plainly and gives you a copy button for each template.
 - Statements are relayed in whatever language the page serves — no detection, no translation ([D026](decisions.md)). Figures that cannot travel in a text prompt are named rather than dropped, so the model knows it is reasoning without one.
 - Nothing is published yet. The first Web Store release will be `0.1.0` and must go out as a staged percentage rollout ([D030](decisions.md)).
-- Three items block publishing: the privacy policy contact address, its effective date, and the licence. See [todo.md](todo.md).
+- Two substitutions remain before submission, both one line in `src/core/links.ts`: the repository slug and the published contact address. Until they are set, the links they would produce render as nothing rather than as dead links, and the diagnostics report is still built and still copyable without them ([D046](decisions.md)).

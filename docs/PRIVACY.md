@@ -1,6 +1,6 @@
 # Privacy Policy — DSA Helper
 
-**Effective date:** *(to be set on first publication)*
+**Effective date:** 3 September 2026
 **Applies to:** the DSA Helper Chrome extension, all versions.
 
 ---
@@ -93,7 +93,13 @@ If the extension ever changes in a way that affects this policy — in particula
 
 ## Contact
 
-Questions about privacy, or about this policy: *(contact address to be added before publication — the Chrome Web Store requires a working contact.)*
+Questions about privacy, or about this policy: `CONTACT_EMAIL_PENDING`
+
+> **Not yet substituted.** The published address is a dedicated alias kept separate from any
+> personal mailbox. It is set in one place — `CONTACT_EMAIL` in
+> [`src/core/links.ts`](../src/core/links.ts) — and copied here at submission time. The Chrome
+> Web Store requires a working contact, so this must be real before the listing goes live; see
+> [todo.md](todo.md) #1.
 
 ---
 
