@@ -4,6 +4,7 @@ dist/
 .DS_Store
 .vite/
 .claude/
+.obsidian/
 
 # Playwright e2e
 e2e/output/
