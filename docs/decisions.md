@@ -2,7 +2,7 @@
 
 **A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-05
 
 ---
 
@@ -80,6 +80,7 @@
 | [D044](#d044) | Diagnostics report the last extraction, not a live one | Accepted | 2026-09-03 |
 | [D045](#d045) | Entry points are uniquely named, and the built artifact is checked | Accepted | 2026-09-03 |
 | [D046](#d046) | Outward-facing URLs live in one module and degrade to nothing | Accepted | 2026-09-03 |
+| [D047](#d047) | End-to-end tests run on the built extension, on Edge | Accepted | 2026-09-05 |
 
 ---
 
@@ -722,6 +723,29 @@ The privacy policy points at the repository copy rather than a hosted page becau
 **Consequences.** `pendingReleaseValues()` reports what is still unset, so "we forgot" is answerable by a function rather than by re-reading a checklist. Two items in [todo.md](todo.md) narrow from decisions to substitutions. The About section of the options page and the Diagnostics "Open an issue" button appear only once their values exist, which means the first published build may ship without them — acceptable, because the diagnostics report is still built and still copyable, and the link was only ever a convenience on top.
 
 **Status.** Accepted · 2026-09-03 · see [D031](#d031), [todo.md](todo.md) #1, #4
+
+<a id="d047"></a>
+### D047 — End-to-end tests run on the built extension, on Edge
+
+**Decision.** A Playwright suite in `e2e/` loads the built `dist/` as an unpacked extension in a real Chromium and drives the extension's own pages. It is separate from `npm run verify` — it needs a browser and a current build — and runs via `npm run test:e2e`. The default browser channel is **Microsoft Edge**, overridable with `PW_CHANNEL`. Its screenshots are report attachments, not committed pixel baselines.
+
+**Context.** Everything the project tested read either source (Vitest) or the built artifact statically (`check:build`, [D045](#d045)). Nothing ever ran the extension. The options page in particular ships real rendering with no coverage of it at all, and [TESTING.md](TESTING.md) §3f/§3g leans entirely on a human walking every section in six theme combinations. That is exactly the kind of check that rots when nobody has fifteen minutes.
+
+**Reasoning — why Edge is the default.** An unpacked extension only loads on some Chromiums, and on this setup the obvious two do not:
+
+- **Google Chrome stable** launches but ignores the extension: Chrome 137 (2025) removed the `--load-extension` / `--disable-extensions-except` command-line switches as an anti-malware measure, and there is no flag to bring them back on the stable channel.
+- **Playwright's bundled Chromium** fails to start on this Windows machine with a side-by-side/VC++ runtime error, before any extension question arises.
+- **Edge** loads it, exposes the MV3 service worker to Playwright, and serves `chrome-extension://` pages identically. For exercising the extension's *own* surfaces — options, popup, the storage-backed logic behind them — Edge is a faithful Chromium target. So it is the default, and CI or another machine can point `PW_CHANNEL` at the bundled `chromium` (which loads extensions fine under the new headless mode).
+
+This does mean the e2e browser is not the primary shipping target. That is acceptable because these tests exercise our code, not Chrome's chrome: the surfaces under test are ordinary extension pages whose behaviour does not vary between Chromium builds. The things that *do* vary — and the browser-level machinery we cannot drive at all — are called out below.
+
+**Reasoning — why not pixel baselines.** The theme matrix is the visual half of §3g, so it is tempting to assert screenshots with `toHaveScreenshot`. Rejected: font rendering differs across machines and OSes, so a committed baseline would fail on every contributor who is not on the machine that generated it, and the maintenance answer to that (per-platform baselines, tolerance thresholds) buys noise, not signal. Instead the assertions carry the regression coverage — every section present, previews recomputing, the size counter escalating, `data-theme` flipping — and the screenshots are attached to the report for a human to glance at.
+
+**Alternatives.** Fold e2e into `npm run verify` (rejected: verify is the fast, browser-free pre-commit gate and the release blocker; a browser-dependent, machine-specific step does not belong in it — it is documented alongside the manual matrix instead); depend on the service worker to derive the extension id (kept — it works on Edge; a `chrome://extensions` scrape was prototyped as a fallback and dropped as more brittle than the service-worker URL); drive keyboard shortcuts and context-menu items (rejected as impossible here, not undesirable: Chrome dispatches `commands` and native menus at the browser level, outside any page, so [D013](#d013)'s three-surface parity keeps a manual leg for the shortcut).
+
+**Consequences.** The options page, previously covered by nothing, now has a rendering regression net. `PW_HEADLESS=1` uses Chrome's *new* headless mode, since the old one loads no extensions. Everything Playwright writes lands under `e2e/output/` (gitignored), including the six named theme screenshots. The next specs to grow are the popup and, once fixtures can stand in for a live site, content-script extraction — the harness's `seedStorage` and page helpers exist for exactly that. Playwright's Chromium was still installed (`npx playwright install chromium`) so CI has the portable path without extra setup.
+
+**Status.** Accepted · 2026-09-05 · see [D045](#d045), [D013](#d013), [TESTING.md](TESTING.md) §1.2, [../e2e/README.md](../e2e/README.md)
 
 ---
 

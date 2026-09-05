@@ -4,3 +4,10 @@ dist/
 .DS_Store
 .vite/
 .claude/
+
+# Playwright e2e
+e2e/output/
+test-results/
+playwright-report/
+blob-report/
+.playwright/

@@ -4,7 +4,7 @@ How this extension is verified. Automated checks catch regressions in pure logic
 
 **Maintenance:** when a phase of the [implementation plan](implementation-plan/implementation-plan-1.md) adds behaviour, add its checks here in the same change. When a bug escapes to a user, add the case that would have caught it.
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-05
 
 ---
 
@@ -52,6 +52,25 @@ Adapter tests opt into jsdom per file:
 ```
 
 **Fixtures are the highest-value asset here.** They are the only mechanism that detects a site redesign before users do. Store trimmed HTML (statement region + editor region), scrub account-identifying markup, and refresh on a schedule — a fixture that silently rots is worse than none.
+
+### 1.2 End-to-end tests (Playwright)
+
+Everything above reads source or the built artifact without a running browser. The e2e layer loads `dist/` as an unpacked extension in a real Chromium and drives its pages — the first automation of the manual rounds that previously had *none* ([D047](decisions.md)). It is **not** part of `npm run verify`: it needs a browser and a current build, so it runs on demand.
+
+```bash
+npm run build
+npm run test:e2e
+```
+
+| Covers | Notes |
+|---|---|
+| Options page renders every section | The rendering §3f/§3g call out as having no test coverage |
+| YouTube preview recomputes as its template is edited | Against the bundled sample problem |
+| Prompt size counter escalates `ok → warn → over` | The [D018](decisions.md) sync-limit guard |
+| Reset-to-default restores the shipped template | |
+| Theme control drives `data-theme` across the six theme × system combinations | Each combination is screenshotted into the report and `e2e/output/screenshots/` |
+
+**It runs on Microsoft Edge by default**, because that is the Chromium here that loads an unpacked extension: Chrome stable (137+) dropped the `--load-extension` switch, and Playwright's bundled Chromium will not start on this machine. Edge serves `chrome-extension://` pages identically. Override with `PW_CHANNEL` ([D047](decisions.md)). See [../e2e/README.md](../e2e/README.md) for the full harness notes and its limits — keyboard shortcuts and native context-menu items **cannot** be driven this way, so the shortcut surface stays a manual check (§3b, §4).
 
 ---
 

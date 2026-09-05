@@ -12,6 +12,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "check:build": "node tools/check-build.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report e2e/output/report",
     "verify": "npm run typecheck && npm run test && npm run build && npm run check:build"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.7.1",
+    "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.1.28",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
