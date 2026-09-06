@@ -18,10 +18,12 @@
  *   - Unreachable ≠ broken. A page that never loads or never hydrates is skipped
  *     ("go look"), not failed. Only a page that DID load and whose extraction
  *     dropped the number is a real failure.
- *   - The LeetCode rows are `test.fail()` on purpose: they document a known bug
- *     (every LeetCode problem currently loses its number) *and* the requirement.
- *     When the extraction fix lands they will "unexpectedly pass" — that is the
- *     signal to delete the marker and let them stand as regression guards.
+ *
+ * The LeetCode rows began as `test.fail()` documenting a live bug — every problem
+ * lost its number to a `titleSlug`-only page-state fragment. That extraction bug
+ * is fixed (leetcode.ts `looksLikeQuestion`), so they now assert the number as
+ * ordinary regression guards; the distinct-subsequences row is the exact URL a
+ * user reported and also checks the number survives into the YouTube query.
  */
 
 import { test, expect, extractContext, type ExtractResult } from './fixtures';
@@ -111,13 +113,11 @@ test.describe('Live extraction — problem number survives', () => {
     expect(ctx.title.trim()).not.toBe('');
   });
 
-  // KNOWN BUG (test.fail): every LeetCode problem currently loses its number.
-  // `looksLikeQuestion` latches onto a `titleSlug`-only page-state fragment that
-  // has no `questionFrontendId`, so the number falls to document.title (which
-  // carries none) and comes out null. See implementation-plan-2.md follow-up #1.
-  // Remove `test.fail()` when the extraction fix lands and this starts passing.
+  // Regression guard for the bug that started this lane: every LeetCode problem
+  // used to lose its number, because `looksLikeQuestion` latched onto a
+  // `titleSlug`-only page-state fragment with no `questionFrontendId`. Fixed by
+  // requiring a real question object (id + title) before the walk accepts it.
   test('LeetCode two-sum keeps its number', async ({ context, serviceWorker }) => {
-    test.fail();
     const ctx = await loadProblem(
       context,
       serviceWorker,
@@ -128,11 +128,10 @@ test.describe('Live extraction — problem number survives', () => {
     expect(ctx.number).toBe('1');
   });
 
-  // KNOWN BUG (test.fail): the exact URL shape the user reported —
-  // `.../distinct-subsequences/description/` came out as a numberless YouTube
-  // search. Same root cause as two-sum. See implementation-plan-2.md follow-up #1.
+  // The exact URL shape the user reported: `.../distinct-subsequences/description/`
+  // came out as a numberless YouTube search (`LeetCode Distinct Subsequences
+  // solution`). Assert both the extracted number and that it now reaches the query.
   test('LeetCode distinct-subsequences keeps its number', async ({ context, serviceWorker }) => {
-    test.fail();
     const ctx = await loadProblem(
       context,
       serviceWorker,
@@ -141,5 +140,8 @@ test.describe('Live extraction — problem number survives', () => {
     );
 
     expect(ctx.number).toBe('115');
+
+    const { query } = buildQuery(DEFAULT_YOUTUBE_TEMPLATE, varsFromContext(ctx), ctx.url);
+    expect(query).toContain('115');
   });
 });

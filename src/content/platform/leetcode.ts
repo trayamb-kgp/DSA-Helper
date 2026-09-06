@@ -89,10 +89,23 @@ interface QuestionJson {
   isPaidOnly?: unknown;
 }
 
-/** A question object is one that names itself. Either marker alone is enough. */
+/**
+ * A question object is one that actually carries the fields we came for. A bare
+ * `{ titleSlug }` reference is NOT a question: LeetCode's page state embeds such
+ * slug-only fragments, and accepting one on its slug alone made the walk return
+ * it first, so the number (read from `questionFrontendId`) fell through to
+ * `document.title`, which carries none — every problem lost its number.
+ *
+ * So require `questionFrontendId` and `title` to be present. The slug is then a
+ * filter, not an acceptance: a page can embed several questions (a recommended
+ * list, the daily), and among the real ones we want the one that names *our*
+ * slug, not merely the first the walk happens to reach.
+ */
 function looksLikeQuestion(value: Record<string, unknown>, slug: string): boolean {
-  if (typeof value['titleSlug'] === 'string' && value['titleSlug'] === slug) return true;
-  return 'questionFrontendId' in value && 'title' in value;
+  const named = 'questionFrontendId' in value && 'title' in value;
+  if (!named) return false;
+  if (slug && typeof value['titleSlug'] === 'string') return value['titleSlug'] === slug;
+  return true;
 }
 
 /**

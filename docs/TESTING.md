@@ -87,11 +87,12 @@ npm run test:e2e:live
 |---|---|---|
 | Codeforces `1352/A` | number is `1352A`, and it reaches the YouTube query | passes |
 | CodeChef `FLOW001` | number is `FLOW001` | passes |
-| LeetCode `two-sum`, `distinct-subsequences` | number is `1`, `115` | **expected-failure** — see below |
+| LeetCode `two-sum` | number is `1` | passes |
+| LeetCode `distinct-subsequences` | number is `115`, and it reaches the YouTube query | passes |
 
 - **A red live run means "the site moved, go look" — not "the build is broken".** It is a pre-release and on-demand step. The offline `e2e` project may run on push; the `live` project runs manually (or, later, on a schedule), never as a required check.
 - **Run it headed.** LeetCode sits behind a Cloudflare interstitial a headless browser cannot clear, and extensions need a real window. `PW_HEADLESS=1` will be challenged; a challenged page never hydrates and is reported **skipped**, not failed — an outage or a headless block can never redden the lane. Run it with a window (the default).
-- **The LeetCode rows are `test.fail()` on purpose.** Every LeetCode problem currently loses its number — the reported bug, where the search came out `LeetCode Distinct Subsequences solution` with no `115`. The canaries document the requirement *and* the known break; when the extraction is fixed they will "unexpectedly pass", which is the cue to drop the marker and let them stand as real regression guards. The fix itself is a follow-up ([implementation-plan-2](implementation-plan/implementation-plan-2.md)), tracked separately from this test lane.
+- **These caught a real bug.** The LeetCode rows began as `test.fail()` documenting the reported defect — every problem lost its number (the search came out `LeetCode Distinct Subsequences solution`, no `115`), because the JSON walker accepted a `titleSlug`-only page-state fragment that carried no `questionFrontendId`. That is fixed in `leetcode.ts` (`looksLikeQuestion` now requires a real question object), so the rows are ordinary passing guards; the `distinct-subsequences` row is the exact URL the user reported. This is the `test.fail()`-becomes-a-guard flow the lane is built around.
 
 ---
 

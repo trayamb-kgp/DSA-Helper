@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { leetcode, parsePath } from './leetcode';
+import { leetcode, parsePath, findQuestionJson } from './leetcode';
 import type { ExtractEnv } from './adapter';
 import practiceHtml from './__fixtures__/leetcode-practice.html?raw';
 import contestHtml from './__fixtures__/leetcode-contest.html?raw';
@@ -129,6 +129,54 @@ describe('practice problem — embedded JSON path', () => {
 
   it('is ready to extract as soon as the description panel exists', () => {
     expect(leetcode.isReady(envFor(fixture('leetcode-practice'), PRACTICE_URL))).toBe(true);
+  });
+});
+
+describe('embedded JSON — the walker picks the real question', () => {
+  /**
+   * Build a page whose embedded state, in traversal order, puts a `titleSlug`-only
+   * fragment and a *different* problem's complete object BEFORE ours. This is the
+   * live shape that broke: the walk used to accept the slug-only fragment (no
+   * `questionFrontendId`), so every LeetCode problem lost its number. The fixtures
+   * above still carry the old single-question shape, so this synthetic case is the
+   * one that guards the fix at the fast layer.
+   */
+  function docWithState(state: unknown): Document {
+    const html = `<!doctype html><html><body>
+      <script type="application/json">${JSON.stringify(state)}</script>
+    </body></html>`;
+    return new DOMParser().parseFromString(html, 'text/html');
+  }
+
+  const STATE = {
+    a_fragment: { titleSlug: 'two-sum' }, // reached first; no id, no title
+    b_neighbor: { questionFrontendId: '2', title: 'Add Two Numbers', titleSlug: 'add-two-numbers' },
+    c_question: {
+      questionFrontendId: '1',
+      title: 'Two Sum',
+      titleSlug: 'two-sum',
+      content: '<p>Given an array…</p>',
+    },
+  };
+
+  it('skips a slug-only fragment and returns the object with the id', () => {
+    const question = findQuestionJson(docWithState(STATE), 'two-sum');
+    expect(question?.questionFrontendId).toBe('1');
+    expect(question?.title).toBe('Two Sum');
+  });
+
+  it('does not grab a different problem that happens to be found first', () => {
+    // b_neighbor is a complete question, but for another slug; the slug is a
+    // filter, so ours is the one that wins even though it comes later.
+    const question = findQuestionJson(docWithState(STATE), 'two-sum');
+    expect(question?.questionFrontendId).not.toBe('2');
+  });
+
+  it('extracts the number end to end from that shape', async () => {
+    const env = envFor(docWithState(STATE), 'https://leetcode.com/problems/two-sum/');
+    const meta = await leetcode.extractMeta(env);
+    expect(meta.number).toBe('1');
+    expect(meta.title).toBe('Two Sum');
   });
 });
 

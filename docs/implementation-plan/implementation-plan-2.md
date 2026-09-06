@@ -1,7 +1,7 @@
 # Implementation Plan 2 — Live extraction smoke tests
 
 **Covers:** adding a second e2e lane that runs the **built extension against real problem pages** and asserts extraction still works — the drift detector the fixture suite structurally cannot be ("suggestion B").
-**Status:** implemented — all three phases landed 2026-09-06. Live lane green (Codeforces + CodeChef pass; the two LeetCode canaries reproduce the known bug as expected-failures). The extraction fix in "Related follow-ups" #1 remains open.
+**Status:** implemented — all three phases landed 2026-09-06, and follow-up #1 (the LeetCode number fix) landed the same day. Live lane fully green: Codeforces, CodeChef, and both LeetCode canaries pass; the LeetCode rows are now regression guards rather than expected-failures. Follow-ups #2 (fixture refresh) and #3 (CodeChef difficulty label) remain open.
 **Last updated:** 2026-09-06
 
 Source documents: [TESTING.md](../TESTING.md) · [decisions.md](../decisions.md) ([D047](../decisions.md#d047)) · [e2e/README.md](../../e2e/README.md) · [implementation-plan-1.md](implementation-plan-1.md)
@@ -167,7 +167,7 @@ Phase complete. §1.2 + §5 of TESTING.md updated; e2e/README.md documents both 
 
 The live reproduction found real defects. This plan writes the tests that watch for them; the fixes are separate work, listed so they are not lost:
 
-1. **LeetCode number extraction (major — every problem).** `findQuestionJson`/`looksLikeQuestion` latch onto a `titleSlug`-only fragment lacking `questionFrontendId`. Fix candidates: require a *complete* question object (has `questionFrontendId` **and** `title`), and/or add a DOM number fallback that reads the leading `"115."` from the title anchor the extractor already matches. This is what flips the Phase 2 `test.fail()` markers to real guards.
+1. ~~**LeetCode number extraction (major — every problem).**~~ **Done (2026-09-06).** `looksLikeQuestion` now requires a real question object (`questionFrontendId` **and** `title`) before the walk accepts it, and uses `titleSlug` only to pick *our* problem among named candidates — so the `titleSlug`-only fragment is skipped and the walk reaches the object that carries the id. The two Phase 2 `test.fail()` markers were removed; the canaries pass as regression guards, and `distinct-subsequences` also asserts the number reaches the YouTube query.
 2. **Refresh the LeetCode fixture (A).** Capture the current live markup into `leetcode-practice.html` (trimmed, scrubbed) so the fast adapter suite also exercises the shape that broke — the fixture-side complement to the live lane.
 3. **CodeChef difficulty label (minor).** Difficulty comes through as `"Difficulty:242"`; the `Difficulty:` prefix should be stripped.
 

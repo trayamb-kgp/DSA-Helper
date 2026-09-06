@@ -31,13 +31,16 @@ check. Naming a spec `*.live.spec.ts` is what puts it in that lane.
 |---|---|---|
 | Codeforces `1352/A` | number `1352A`, and it reaches the YouTube query | passes |
 | CodeChef `FLOW001` | number `FLOW001` | passes |
-| LeetCode `two-sum`, `distinct-subsequences` | number `1`, `115` | `test.fail()` — documents a known live bug until the extraction fix lands |
+| LeetCode `two-sum` | number `1` | passes |
+| LeetCode `distinct-subsequences` | number `115`, and it reaches the YouTube query | passes |
 
-Two rules keep the lane honest: an **unreachable or un-hydrated** page (an
-outage, or a headless Cloudflare block) is `skip`ped, not failed — only a page
-that *did* load and dropped the number fails; and the LeetCode rows ship as
-`test.fail()`, so they document the bug now and flip to real regression guards
-the moment extraction is fixed (they will then "unexpectedly pass").
+An **unreachable or un-hydrated** page (an outage, or a headless Cloudflare
+block) is `skip`ped, not failed — only a page that *did* load and dropped the
+number fails. The two LeetCode rows began life as `test.fail()`, documenting the
+reported bug where every LeetCode problem lost its number; the extraction fix
+(`leetcode.ts` `looksLikeQuestion`) made them pass, so they now stand as
+ordinary regression guards. That "document the bug, then become the guard" arc
+is the pattern this lane is for.
 
 **Run the live lane headed.** LeetCode's Cloudflare interstitial needs a real
 window; `PW_HEADLESS=1` gets challenged and the affected canaries skip.
