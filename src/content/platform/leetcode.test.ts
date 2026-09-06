@@ -55,7 +55,7 @@ function envFor(doc: Document, url: string, overrides: Partial<ExtractEnv> = {})
 
 const PRACTICE_URL = 'https://leetcode.com/problems/sort-an-array/description/';
 const CONTEST_URL =
-  'https://leetcode.com/contest/weekly-contest-400/problems/find-the-maximum-achievable-number/';
+  'https://leetcode.com/contest/weekly-contest-400/problems/minimum-number-of-chairs-in-a-waiting-room/';
 const PREMIUM_URL = 'https://leetcode.com/problems/lowest-common-ancestor-of-a-binary-tree-iii/';
 
 describe('parsePath', () => {
@@ -65,7 +65,7 @@ describe('parsePath', () => {
 
   it('reads both the contest and the slug out of a contest URL', () => {
     expect(parsePath(new URL(CONTEST_URL))).toEqual({
-      slug: 'find-the-maximum-achievable-number',
+      slug: 'minimum-number-of-chairs-in-a-waiting-room',
       contest: 'weekly-contest-400',
     });
   });
@@ -194,27 +194,33 @@ describe('contest problem — DOM fallback path', () => {
     const env = envFor(fixture('leetcode-contest'), CONTEST_URL);
     const meta = await leetcode.extractMeta(env);
 
-    expect(meta.slug).toBe('find-the-maximum-achievable-number');
-    expect(meta.title).toBe('Find the Maximum Achievable Number');
+    expect(meta.slug).toBe('minimum-number-of-chairs-in-a-waiting-room');
+    expect(meta.title).toBe('Minimum Number of Chairs in a Waiting Room');
     expect(meta.difficulty).toBe('Easy');
     expect(meta.isLocked).toBe(false);
     expect(env.diagnostics).toContain('meta: DOM fallback');
   });
 
-  it('still splits the statement it scraped', async () => {
+  it('still splits the statement it scraped, tables and all', async () => {
     const env = envFor(fixture('leetcode-contest'), CONTEST_URL);
     const meta = await leetcode.extractMeta(env);
 
-    expect(meta.statementMd).toContain('achievable');
-    expect(meta.examplesMd).toContain('num = 4, t = 1');
-    expect(meta.constraintsMd).toContain('1 <= num, t <= 50');
+    expect(meta.statementMd).toContain('waiting room');
+    // The modern example shape: <div class="example-block"> with Input/Output,
+    // plus a <table> state trace -- both must survive into the examples section.
+    expect(meta.examplesMd).toContain('Input:');
+    expect(meta.examplesMd).toContain('EEEEEEE');
+    expect(meta.examplesMd).toContain('| Second |');
+    expect(meta.constraintsMd).toContain('s.length');
   });
 
-  it('records the fallback selectors it had to reach for', async () => {
+  it('reads the statement from the primary selector but falls back for the title', async () => {
     const env = envFor(fixture('leetcode-contest'), CONTEST_URL);
     await leetcode.extractMeta(env);
-    // An early warning that the preferred anchors have moved -- not a failure.
-    expect(env.diagnostics.some((d) => d.startsWith('statement: matched fallback #'))).toBe(true);
+    // Modern markup: the statement carries data-track-load (the primary
+    // selector), so no statement fallback fires; the title toolbar has no
+    // text-title anchor, so the title reaches a later selector -- not a failure.
+    expect(env.diagnostics.some((d) => d.startsWith('statement: matched fallback #'))).toBe(false);
     expect(env.diagnostics.some((d) => d.startsWith('title: matched fallback #'))).toBe(true);
   });
 
