@@ -99,9 +99,12 @@ test.describe('Live extraction — problem number survives', () => {
     expect(query).toContain('1352A');
   });
 
-  // Passing canary: CodeChef's number is correct (only its difficulty label is
-  // wrong — a separate follow-up). Gives the canary set a third platform.
-  test('CodeChef FLOW001 keeps its number', async ({ context, serviceWorker }) => {
+  // Passing canary: CodeChef's number and (since the label-strip fix) difficulty.
+  // Gives the canary set a third platform.
+  test('CodeChef FLOW001 keeps its number and a clean difficulty', async ({
+    context,
+    serviceWorker,
+  }) => {
     const ctx = await loadProblem(
       context,
       serviceWorker,
@@ -111,6 +114,11 @@ test.describe('Live extraction — problem number survives', () => {
 
     expect(ctx.number).toBe('FLOW001');
     expect(ctx.title.trim()).not.toBe('');
+    // The live chip reads "Difficulty:<rating>"; the adapter strips the label.
+    // Don't pin the rating — it drifts — just prove no label leaks through.
+    if (ctx.difficulty !== null) {
+      expect(ctx.difficulty).not.toMatch(/difficulty/i);
+    }
   });
 
   // Regression guard for the bug that started this lane: every LeetCode problem

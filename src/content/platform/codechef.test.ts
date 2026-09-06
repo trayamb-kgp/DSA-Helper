@@ -108,6 +108,7 @@ describe('contest problem — DOM fallback path', () => {
     const meta = await codechef.extractMeta(env);
 
     expect(meta.title).toBe('Chef and Subarrays');
+    // The chip renders "Difficulty:2100"; the adapter strips the label.
     expect(meta.difficulty).toBe('2100');
     expect(env.diagnostics).toContain('meta: DOM fallback');
   });
@@ -130,6 +131,29 @@ describe('contest problem — DOM fallback path', () => {
   it('has no tags to report and does not invent any', async () => {
     const meta = await codechef.extractMeta(envFor(contestHtml, CONTEST_URL));
     expect(meta.tags).toEqual([]);
+  });
+});
+
+describe('difficulty label on the DOM chip', () => {
+  // Live CodeChef renders its own label glued to the rating: "Difficulty:242".
+  // The label is UI, the rating is the value.
+  const withChip = (chip: string) =>
+    `<html><head><title>X | CodeChef</title></head><body>` +
+    `<div class="_difficulty-ratings__box">${chip}</div></body></html>`;
+
+  it('strips the "Difficulty:" label', async () => {
+    const meta = await codechef.extractMeta(envFor(withChip('Difficulty:242'), PRACTICE_URL));
+    expect(meta.difficulty).toBe('242');
+  });
+
+  it('tolerates a space after the colon', async () => {
+    const meta = await codechef.extractMeta(envFor(withChip('Difficulty: 1600'), PRACTICE_URL));
+    expect(meta.difficulty).toBe('1600');
+  });
+
+  it('leaves an unlabelled rating untouched', async () => {
+    const meta = await codechef.extractMeta(envFor(withChip('1900'), PRACTICE_URL));
+    expect(meta.difficulty).toBe('1900');
   });
 });
 

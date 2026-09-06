@@ -9,6 +9,9 @@
   fallback -- which should show up in diagnostics as an early warning, not as a
   failure.
 
+  The difficulty chip renders its own "Difficulty:" label glued to the rating,
+  as the live page does (`Difficulty:242` on FLOW001); the adapter strips it.
+
   Account markup (username, contest timer, ranking) scrubbed.
 -->
 <html lang="en">
@@ -18,7 +21,7 @@
 <body>
   <div id="__next">
     <h1 class="problem-name_title__x9K2p">Chef and Subarrays</h1>
-    <div class="_rating__2bQ7f">2100</div>
+    <div class="_difficulty-ratings__box_a2x1m_503">Difficulty:2100</div>
 
     <div class="_problemStatement__aB3xY">
       <p>Chef has an array <em>A</em> of <em>N</em> integers. Count the subarrays whose sum is divisible by <em>K</em>.</p>

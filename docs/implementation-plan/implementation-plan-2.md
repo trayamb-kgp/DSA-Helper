@@ -1,7 +1,7 @@
 # Implementation Plan 2 — Live extraction smoke tests
 
 **Covers:** adding a second e2e lane that runs the **built extension against real problem pages** and asserts extraction still works — the drift detector the fixture suite structurally cannot be ("suggestion B").
-**Status:** implemented — all three phases landed 2026-09-06, and follow-up #1 (the LeetCode number fix) landed the same day. Live lane fully green: Codeforces, CodeChef, and both LeetCode canaries pass; the LeetCode rows are now regression guards rather than expected-failures. Follow-up #2 (LeetCode fixture refresh) also landed 2026-09-06; #3 (CodeChef difficulty label) remains open.
+**Status:** implemented — all three phases landed 2026-09-06, and follow-up #1 (the LeetCode number fix) landed the same day. Live lane fully green: Codeforces, CodeChef, and both LeetCode canaries pass; the LeetCode rows are now regression guards rather than expected-failures. Follow-ups #2 (LeetCode fixture refresh) and #3 (CodeChef difficulty label) also landed 2026-09-06 — all three related follow-ups are now done.
 **Last updated:** 2026-09-06
 
 Source documents: [TESTING.md](../TESTING.md) · [decisions.md](../decisions.md) ([D047](../decisions.md#d047)) · [e2e/README.md](../../e2e/README.md) · [implementation-plan-1.md](implementation-plan-1.md)
@@ -169,7 +169,7 @@ The live reproduction found real defects. This plan writes the tests that watch 
 
 1. ~~**LeetCode number extraction (major — every problem).**~~ **Done (2026-09-06).** `looksLikeQuestion` now requires a real question object (`questionFrontendId` **and** `title`) before the walk accepts it, and uses `titleSlug` only to pick *our* problem among named candidates — so the `titleSlug`-only fragment is skipped and the walk reaches the object that carries the id. The two Phase 2 `test.fail()` markers were removed; the canaries pass as regression guards, and `distinct-subsequences` also asserts the number reaches the YouTube query.
 2. ~~**Refresh the LeetCode fixture (A).**~~ **Done (2026-09-06).** `leetcode-practice.html` recaptured from the live page (trimmed, scrubbed): it now carries the `titleSlug`-only fragment the old snapshot lacked, so the fast adapter suite exercises the shape that broke and the practice `number === '912'` assertion fails on the old walker. Findings recorded in [todo.md](../todo.md) #5 (tab title lost its number; topic tags 3 → 8). The other seven fixtures remain hand-built.
-3. **CodeChef difficulty label (minor).** Difficulty comes through as `"Difficulty:242"`; the `Difficulty:` prefix should be stripped.
+3. ~~**CodeChef difficulty label (minor).**~~ **Done (2026-09-06).** The live chip renders `Difficulty:242` (no cached JSON on the page, so the DOM path is used); `codechef.ts` now strips a leading `Difficulty` label (optional colon/space) from the DOM value. Guarded by the refreshed contest fixture (chip now reads `Difficulty:2100`), three focused unit cases, and a live-lane assertion that no label leaks through.
 
 ---
 

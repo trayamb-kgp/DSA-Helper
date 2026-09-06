@@ -103,6 +103,19 @@ function looksLikeProblem(value: Record<string, unknown>, code: string): boolean
   return 'problem_name' in value && 'body' in value;
 }
 
+/**
+ * CodeChef's difficulty chip renders its own label: the live DOM reads
+ * `Difficulty:242`, label glued to the rating. The label is UI chrome, the
+ * rating is the value, so strip a leading "Difficulty" (with an optional colon
+ * and surrounding space) and let the number stand alone. Text that carries no
+ * such label -- the JSON rating, or an older DOM shape -- passes through as is.
+ */
+function stripDifficultyLabel(raw: string | null): string | null {
+  if (raw === null) return null;
+  const value = raw.replace(/^\s*difficulty\s*:?\s*/i, '').trim();
+  return value === '' ? null : value;
+}
+
 const MAX_SCRIPT_CHARS = 4 * 1024 * 1024;
 
 /**
@@ -197,7 +210,7 @@ export const codechef: PlatformAdapter = {
       if (typeof rating === 'number' && Number.isFinite(rating)) return String(rating);
       if (typeof rating === 'string' && rating.trim() !== '') return rating.trim();
       const hit = queryFirst(env.doc, SELECTORS.difficulty);
-      return text(hit?.el);
+      return stripDifficultyLabel(text(hit?.el));
     });
 
     const tags =
