@@ -110,21 +110,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const fromChatGpt = (sender.origin ?? sender.url ?? '').startsWith(CHATGPT_URL.slice(0, -1));
 
   if (tabId == null || !fromChatGpt) {
-    const denied: Msg = { type: 'PENDING_PROMPT', prompt: null };
+    const denied: Msg = { type: 'PENDING_PROMPT', prompt: null, autoSubmit: false };
     sendResponse(denied);
     return false;
   }
 
   void claimPendingPrompt(tabId)
-    .then(async (prompt) => {
+    .then(async (claim) => {
       // Cheap, and the only place an abandoned tab's prompt gets collected if
       // its tab was closed while the worker was asleep.
       await sweepExpired().catch(() => 0);
-      const reply: Msg = { type: 'PENDING_PROMPT', prompt };
+      const reply: Msg = {
+        type: 'PENDING_PROMPT',
+        prompt: claim?.prompt ?? null,
+        autoSubmit: claim?.autoSubmit ?? false,
+      };
       sendResponse(reply);
     })
     .catch(() => {
-      const reply: Msg = { type: 'PENDING_PROMPT', prompt: null };
+      const reply: Msg = { type: 'PENDING_PROMPT', prompt: null, autoSubmit: false };
       sendResponse(reply);
     });
 

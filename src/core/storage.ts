@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = Object.freeze({
   focusNewTab: true,
   includeCode: true,
   autoInjectChatGpt: true,
+  autoSubmitChatGpt: false,
   historyLimit: 20,
   historyPaused: false,
   theme: 'system',

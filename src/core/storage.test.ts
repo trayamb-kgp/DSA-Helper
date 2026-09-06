@@ -94,6 +94,13 @@ describe('mergeSettings', () => {
     });
   });
 
+  it('defaults auto-submit to off for settings saved before the field existed (D050)', () => {
+    // A bag from an older build has no `autoSubmitChatGpt`; it must merge to
+    // false, never leaving the opt-in in an undefined state.
+    const merged = mergeSettings({ autoInjectChatGpt: true });
+    expect(merged.autoSubmitChatGpt).toBe(false);
+  });
+
   it('discards a value of the wrong type', () => {
     const merged = mergeSettings({ historyLimit: 'lots' as unknown as number });
     expect(merged.historyLimit).toBe(DEFAULT_SETTINGS.historyLimit);

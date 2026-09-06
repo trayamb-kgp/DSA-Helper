@@ -297,10 +297,18 @@ export function Options() {
         />
         <Toggle
           label="Type the prompt into ChatGPT automatically"
-          hint="Off: Ask ChatGPT copies the prompt to your clipboard and opens no tab. The extension never sends a prompt either way — you press Enter."
+          hint="Off: Ask ChatGPT copies the prompt to your clipboard and opens no tab, instead of opening ChatGPT with the prompt typed in."
           checked={settings.autoInjectChatGpt}
           onChange={(autoInjectChatGpt) => update({ autoInjectChatGpt })}
         />
+        {settings.autoInjectChatGpt && (
+          <Toggle
+            label="Send the prompt automatically"
+            hint="Off by default. On: once the prompt is confirmed typed into ChatGPT, it is sent for you. The prompt is built from a problem page the extension doesn't control, so reading it before it's sent is a safeguard against prompt injection — leave this off if you're unsure. Nothing is ever sent if the prompt can't be typed in."
+            checked={settings.autoSubmitChatGpt}
+            onChange={(autoSubmitChatGpt) => update({ autoSubmitChatGpt })}
+          />
+        )}
         <div className="field">
           <label htmlFor="cap">Maximum prompt size</label>
           <p className="muted">

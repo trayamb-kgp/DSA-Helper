@@ -443,8 +443,22 @@ describe('runAction — the ChatGPT action (spec §7.2)', () => {
     // Keyed by the created tab's id, not globally (architecture §5.3).
     const keys = Object.keys(fake.session);
     expect(keys).toEqual(['pendingPrompt:99']);
-    const entry = fake.session['pendingPrompt:99'] as { prompt: string };
+    const entry = fake.session['pendingPrompt:99'] as { prompt: string; autoSubmit: boolean };
     expect(entry.prompt).toContain('int main() {}');
+    // Auto-submit is off by default, so the parked entry says so (D050).
+    expect(entry.autoSubmit).toBe(false);
+  });
+
+  it('parks the auto-submit opt-in with the prompt when it is on (D050)', async () => {
+    fake = installChrome({ autoSubmitChatGpt: true });
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    const entry = fake.session['pendingPrompt:99'] as { autoSubmit: boolean };
+    // The worker decides from settings and stores the decision; the content
+    // script never reads settings itself.
+    expect(entry.autoSubmit).toBe(true);
   });
 
   it('opens a new tab even when openInNewTab is off', async () => {
@@ -548,14 +562,23 @@ describe('history recording (D024, spec §5.1)', () => {
     expect(historyOf(fake)[0]?.problemKey).toBe('leetcode:sort-an-array');
   });
 
-  it('keeps the last extraction for the options page, in local storage only', async () => {
-    fake.contextReply = { type: 'CONTEXT_RESULT', context: context({ code: 'int main() {}' }) };
+  it('keeps the last extraction for the options page, but strips the code (D018)', async () => {
+    fake.contextReply = {
+      type: 'CONTEXT_RESULT',
+      context: context({ code: 'int main() {}', codeSource: 'editorApi' }),
+    };
     const { runAction } = await load();
     await runAction('youtube', tab());
 
-    const last = fake.local['lastExtraction'] as { context: { code: string } };
-    expect(last.context.code).toBe('int main() {}');
-    // The context carries the user's code, so it never reaches sync (D018).
+    const last = fake.local['lastExtraction'] as {
+      context: { code: string | null; codeSource: string };
+    };
+    // The code content is dropped before storage: it must never touch disk.
+    expect(last.context.code).toBeNull();
+    // The source is kept, so diagnostics can still say a solution was captured.
+    expect(last.context.codeSource).toBe('editorApi');
+    // And the code text appears in no storage area at all (D018).
+    expect(JSON.stringify(fake.local)).not.toContain('int main');
     expect(JSON.stringify(fake.session)).not.toContain('int main');
   });
 

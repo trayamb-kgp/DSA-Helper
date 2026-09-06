@@ -67,6 +67,15 @@ export interface Settings {
   includeCode: boolean;
   /** false => clipboard-only flow, no ChatGPT tab is opened. */
   autoInjectChatGpt: boolean;
+  /**
+   * Opt-in: submit the prompt automatically once it has been *verifiably*
+   * inserted, instead of leaving it for the user to send. **Off by default.**
+   * This reverses the never-submit default of [D003] and is only acceptable
+   * under [D050]: the human pre-read is a prompt-injection safeguard, so
+   * auto-submit fires only after read-back verification and never on the
+   * clipboard-fallback path. Meaningless unless `autoInjectChatGpt` is true.
+   */
+  autoSubmitChatGpt: boolean;
   /** 0 disables history entirely. */
   historyLimit: number;
   /** Popup toggle; persists across restarts. */
@@ -104,5 +113,11 @@ export type Msg =
    * build one from; the worker has already said so.
    */
   | { type: 'PROMPT_RESULT'; prompt: string | null }
-  | { type: 'PENDING_PROMPT'; prompt: string | null }
+  /**
+   * `autoSubmit` travels with the prompt (decided by the worker from settings
+   * when the action fired), so the ChatGPT content script never reads settings
+   * itself. It is false on every path but a claim that both found a prompt and
+   * had the opt-in on ([D050]).
+   */
+  | { type: 'PENDING_PROMPT'; prompt: string | null; autoSubmit: boolean }
   | { type: 'TOAST'; level: ToastLevel; text: string };

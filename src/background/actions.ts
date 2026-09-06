@@ -144,7 +144,14 @@ async function requestContext(tabId: number): Promise<ProblemContext | null> {
 async function remember(context: ProblemContext, diagnostics: string[]): Promise<void> {
   try {
     const settings = await getSettings();
-    setLastExtraction({ context, diagnostics, at: Date.now() });
+    // The user's code never touches disk (D018). `lastExtraction` lives in
+    // chrome.storage.local, so the code is dropped before it is stored; the
+    // options preview and diagnostics run off everything else, and `codeSource`
+    // is kept so a report can still say a solution *was* captured (D049,
+    // PRIVACY.md). Without this the code sat on disk until the next action.
+    const storable: ProblemContext =
+      context.code === null ? context : { ...context, code: null };
+    setLastExtraction({ context: storable, diagnostics, at: Date.now() });
 
     const [history] = await Promise.all([getHistory()]);
     const next = recordVisit(history, entryFromContext(context, Date.now()), {
@@ -296,7 +303,9 @@ async function runChatGpt(tab: chrome.tabs.Tab, tabId: number): Promise<void> {
     return;
   }
 
-  await putPendingPrompt(created.id, built.prompt);
+  // The auto-submit decision is made here, from settings, and travels with the
+  // prompt so the content script never reads settings itself ([D050]).
+  await putPendingPrompt(created.id, built.prompt, built.settings.autoSubmitChatGpt);
 
   // Anything the prompt is missing is said on the problem tab, where the user
   // still is when `focusNewTab` is off, and before ChatGPT has even loaded.

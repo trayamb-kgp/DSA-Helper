@@ -147,6 +147,16 @@ describe('fieldReports', () => {
     const reports = fieldReports(context({ statementMd: null }));
     expect(reports.find((r) => r.field === 'statement')?.status).toBe('missing');
   });
+
+  it('reports code stripped-for-storage as captured, not missing (D018)', () => {
+    // The stored extraction drops the code text but keeps its source, so a
+    // report on it must not read as "no solution was captured".
+    const report = fieldReports(context({ code: null, codeSource: 'editorApi' })).find(
+      (r) => r.field === 'code',
+    );
+    expect(report?.status).toBe('ok');
+    expect(report?.detail).toContain('not stored');
+  });
 });
 
 describe('buildReport', () => {

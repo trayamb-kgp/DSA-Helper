@@ -11,7 +11,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { insertPrompt, readComposer } from './inject';
+import { insertPrompt, readComposer, shouldSubmit, submitComposer } from './inject';
 import injectSource from './inject.ts?raw';
 
 const PROMPT = "I'm solving a DSA problem on LeetCode.\n\n```cpp\nint main() {}\n```";
@@ -21,29 +21,86 @@ const code = injectSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
   .replace(/^\s*\/\/.*$/gm, '');
 
-describe('never submits (D003)', () => {
-  it('dispatches no key events at all', () => {
+describe('submit is gated, never a key event or form submit (D003, D050)', () => {
+  it('dispatches no key events to submit', () => {
+    // Submitting via a synthetic Enter risks inserting a newline into the
+    // multi-line composer and side-steps the send button's enabled state.
     expect(code).not.toMatch(/KeyboardEvent/);
     expect(code).not.toMatch(/['"`]key(down|up|press)['"`]/);
     expect(code).not.toMatch(/['"`]Enter['"`]/);
   });
 
-  it('clicks nothing and submits no form', () => {
-    expect(code).not.toMatch(/\.click\(/);
+  it('submits no form directly — the send button is the only mechanism', () => {
     expect(code).not.toMatch(/requestSubmit/);
     expect(code).not.toMatch(/\.submit\(/);
     expect(code).not.toMatch(/type=["']submit["']/);
   });
 
-  it('reaches for no send button', () => {
-    expect(code).not.toMatch(/send-button/i);
-    expect(code).not.toMatch(/data-testid=["']send/i);
-  });
-
   it('still says why, in the file itself', () => {
     // The rule is worth nothing if the next person cannot see it is a rule.
-    expect(injectSource).toContain('NEVER SUBMIT');
+    expect(injectSource).toContain('SUBMIT ONLY WITH CONSENT');
     expect(injectSource).toContain('D003');
+    expect(injectSource).toContain('D050');
+  });
+});
+
+describe('shouldSubmit (D050)', () => {
+  it('submits only when the insertion verified AND the user opted in', () => {
+    expect(shouldSubmit(true, true)).toBe(true);
+    expect(shouldSubmit(true, false)).toBe(false);
+    expect(shouldSubmit(false, true)).toBe(false);
+    expect(shouldSubmit(false, false)).toBe(false);
+  });
+});
+
+describe('submitComposer (D050)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('clicks the send button when it is present and enabled', async () => {
+    const button = document.createElement('button');
+    button.setAttribute('data-testid', 'send-button');
+    let clicks = 0;
+    button.addEventListener('click', () => {
+      clicks += 1;
+    });
+    document.body.append(button);
+
+    expect(await submitComposer(0)).toBe(true);
+    expect(clicks).toBe(1);
+  });
+
+  it('does not click a disabled send button', async () => {
+    const button = document.createElement('button');
+    button.setAttribute('data-testid', 'send-button');
+    button.disabled = true;
+    let clicks = 0;
+    button.addEventListener('click', () => {
+      clicks += 1;
+    });
+    document.body.append(button);
+
+    expect(await submitComposer(0)).toBe(false);
+    expect(clicks).toBe(0);
+  });
+
+  it('does not click an aria-disabled send button', async () => {
+    const button = document.createElement('button');
+    button.setAttribute('data-testid', 'send-button');
+    button.setAttribute('aria-disabled', 'true');
+    let clicks = 0;
+    button.addEventListener('click', () => {
+      clicks += 1;
+    });
+    document.body.append(button);
+
+    expect(await submitComposer(0)).toBe(false);
+    expect(clicks).toBe(0);
+  });
+
+  it('reports failure when there is no send button', async () => {
+    expect(await submitComposer(0)).toBe(false);
   });
 });
 

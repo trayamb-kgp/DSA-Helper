@@ -278,7 +278,7 @@ Manual, in a real Chrome:
 
 Automated:
 
-- [x] **No submit path exists in `inject.ts`** — enforced by a test that reads the module's own source with comments stripped, so the prose explaining the rule cannot satisfy it ([D003](decisions.md#d003))
+- [x] **Submit is gated, not absent** — auto-submit is an off-by-default opt-in ([D050](decisions.md#d050)). A source-reading test still forbids key-event and form submission outright; `shouldSubmit` is a tested predicate (true only when the insertion verified **and** the user opted in); and the send button is clicked only when enabled. The never-submit *default* of [D003](decisions.md#d003) is unchanged
 - [x] The prompt is written to `chrome.storage.session` and nowhere else; `local` and `sync` stay empty ([D018](decisions.md#d018))
 - [x] Claiming is one-shot: a second claim returns null and leaves nothing behind; an expired entry is deleted rather than left to be claimed later
 - [x] Two problem tabs firing in quick succession get their own prompts (architecture.md §5.3)
@@ -290,7 +290,9 @@ Automated:
 
 Manual, in a real Chrome:
 
-- [ ] **The prompt lands unsent** — `Alt+Shift+G` on a LeetCode problem opens ChatGPT with the prompt in the composer and the banner above it. **Nothing is sent.** Check the conversation list: no new conversation was started
+- [ ] **The prompt lands unsent (default)** — with auto-submit off (the default), `Alt+Shift+G` on a LeetCode problem opens ChatGPT with the prompt in the composer and the banner above it. **Nothing is sent.** Check the conversation list: no new conversation was started
+- [ ] **Auto-submit, when opted in ([D050](decisions.md#d050))** — turn on *Send the prompt automatically* in options, fire `Alt+Shift+G`, and confirm the prompt is inserted and then sent once (one new message, no duplicate). Turn it back off and confirm the prompt again waits unsent
+- [ ] **Auto-submit never fires on a failed insert** — with auto-submit on, break `COMPOSER_SELECTORS` so insertion fails; confirm the prompt goes to the clipboard and **nothing is sent**
 - [ ] **Break the selector on purpose** — edit `COMPOSER_SELECTORS` in `inject.ts` to something that cannot match, rebuild, and confirm the prompt reaches the clipboard with the *"press Ctrl+V"* toast. This is the path that runs the day ChatGPT redesigns, so it is the one worth proving
 - [ ] **The selector is still right** — `COMPOSER_SELECTORS` carries a verified-on date of 2026-09-03 derived from spec.md §7.2 rather than from a live page. Confirm the first entry is the one that matches
 - [ ] **Two tabs at once** — fire the action from two different problem tabs in quick succession; each ChatGPT tab must get its own prompt, not the same one twice
@@ -435,7 +437,8 @@ These encode decisions, and a regression here is a decision being silently undon
 | Several language buffers open | The language **currently on screen** is what gets sent | [D025](decisions.md) |
 | Solution longer than the prompt budget | Statement trimmed, examples trimmed, **code intact** | [D022](decisions.md) |
 | ChatGPT composer selector broken (break it on purpose) | Falls back to clipboard with an explanatory toast; prompt not lost | [D003](decisions.md) |
-| Prompt inserted into ChatGPT | Sits unsent in the composer. **Never auto-submits** | [D003](decisions.md) |
+| Prompt inserted into ChatGPT (default) | Sits unsent in the composer; **auto-submit is off by default** | [D003](decisions.md) |
+| Prompt inserted with auto-submit on | Sent once, only after the insertion verified; never on the clipboard fallback | [D050](decisions.md) |
 | Any action on an unsupported page | A toast explaining why — never silence | [D016](decisions.md) |
 | Shortcut held down | One tab opens, not twenty | [D017](decisions.md) |
 | SPA navigation between two problems | Re-detects without a reload | — |

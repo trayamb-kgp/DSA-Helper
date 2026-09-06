@@ -34,6 +34,7 @@ All storage is your browser's own extension storage, on your device. Three kinds
 |---|---|---|
 | **Your settings and templates** — the YouTube query template, the ChatGPT prompt template, your preferences | Chrome's synced extension storage, so they follow you across Chrome installs where you're signed in | Until you change them or remove the extension |
 | **Recently visited problems** — platform, title, identifier, link, and when. **Never the statement. Never your code.** | Your device only. Not synced | Until you clear it, or it falls off the end of your chosen limit |
+| **The most recent problem you used it on** — its title, statement, examples, constraints and link, kept to power the options-page preview and the diagnostics panel. **Never your code** — the code is stripped before this is saved. | Your device only. Not synced | Overwritten each time you use an action; erased when you clear history |
 | **A prepared prompt awaiting hand-off** — held for a few seconds while the ChatGPT tab opens | Memory only, never written to disk | Deleted the moment it is used, or within 5 minutes, or when you close the browser |
 
 **Your code is deliberately the most protected of these.** It is never written to disk, never synced, never added to history, and never kept after the action that used it.
@@ -53,7 +54,7 @@ All storage is your browser's own extension storage, on your device. Three kinds
 This matters, so it is stated plainly.
 
 - **Search YouTube** opens a YouTube results page with your query. Google receives that query as it would any search you typed.
-- **Ask ChatGPT** opens ChatGPT with a prompt placed in the message box — containing the problem details and, unless you've turned that off, **your code**. **The extension never sends it.** It is typed in and left there for you to read; nothing reaches OpenAI unless you press Enter.
+- **Ask ChatGPT** opens ChatGPT with a prompt placed in the message box — containing the problem details and, unless you've turned that off, **your code**. **By default the extension never sends it** — it is typed in and left there for you to read, and nothing reaches OpenAI unless you press Enter. If you switch on **Send the prompt automatically** in settings, it is sent for you once it is confirmed typed in; leave that off to keep the review step.
 - **Copy prompt** places the same text on your clipboard and opens nothing.
 
 Once you send a message on those sites, what happens to it is governed by **their** privacy policies, not this one:

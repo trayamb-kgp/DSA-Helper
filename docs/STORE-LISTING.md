@@ -30,7 +30,7 @@ The short description is 102 characters. It matches `manifest.config.ts`'s `desc
 >
 > **Ask ChatGPT** — `Alt+Shift+G` opens ChatGPT with a full prompt already typed in: the problem, the examples, the constraints, your code, and a clear request for a correctness, complexity and optimality review.
 >
-> **It never presses Enter for you.** The prompt is typed into the message box and left there. You read it, change it if you want, and send it yourself. That pause is deliberate — the prompt carries text from a page the extension doesn't control, and you should see what you're about to send.
+> **By default it never presses Enter for you.** The prompt is typed into the message box and left there — you read it, change it if you want, and send it yourself. That pause is deliberate: the prompt carries text from a page the extension doesn't control, and you should see what you're about to send. If you'd rather skip it, an **off-by-default** setting sends automatically once the prompt is confirmed typed in.
 >
 > **Copy prompt** — the same prompt on your clipboard, opening nothing.
 >
@@ -51,6 +51,9 @@ The short description is 102 characters. It matches `manifest.config.ts`'s `desc
 >
 > A NOTE ABOUT CONTESTS
 > This extension does not restrict itself during contests and does not detect whether one is running. Using AI assistance in a live contest breaks the rules of LeetCode, Codeforces and CodeChef. It won't stop you and it won't warn you. That decision, and its consequences, are yours.
+>
+> NOT AFFILIATED
+> DSA Helper is an independent tool, not affiliated with, endorsed by, or sponsored by LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI / ChatGPT. All trademarks belong to their respective owners. It acts only on content already shown to you, at your request, and you are responsible for using it in line with each site's terms of service.
 
 ---
 
@@ -74,7 +77,7 @@ One per permission. Reviewers read these against the code, so each says what the
 | `contextMenus` | Adds the right-click menu that is one of the three ways to trigger an action. |
 | `tabs` | Opens the YouTube or ChatGPT tab, and matches a prepared prompt to the tab it was prepared for. The tab id is the only way to deliver a prompt to the correct tab; `activeTab` alone does not provide the id of a newly created tab. |
 | Host access to `leetcode.com`, `codeforces.com`, `codechef.com`, `geeksforgeeks.org`, `practice.geeksforgeeks.org` | These are the sites whose problems the extension reads. Reading them is the extension's entire function; it does nothing on any other site. |
-| Host access to `chatgpt.com` | Places the prepared prompt into the ChatGPT message box. The extension does not submit it — it stops there so the user reads it first. |
+| Host access to `chatgpt.com` | Places the prepared prompt into the ChatGPT message box. By default it does not submit it — the user reads it and sends it. Submitting automatically is an off-by-default setting the user can turn on. |
 
 **Remote code:** none. The extension executes no code that is not in the package. Say so explicitly on the form — this question is a common rejection cause when answered carelessly.
 
@@ -130,7 +133,7 @@ Work top to bottom. Nothing below is optional.
 - [ ] `CONTACT_EMAIL` set in [`src/core/links.ts`](../src/core/links.ts), and the same address pasted into [PRIVACY.md](PRIVACY.md) → Contact ([todo.md](todo.md) #1)
 - [ ] `REPO_SLUG` set in [`src/core/links.ts`](../src/core/links.ts), repository public ([todo.md](todo.md) #4)
 - [ ] Privacy policy reachable at a public URL, and that URL entered on the form
-- [x] Licence chosen and [`LICENSE`](../LICENSE) committed — MIT ([todo.md](todo.md) #3)
+- [x] Licence chosen and [`LICENSE`](../LICENSE) committed — PolyForm Strict 1.0.0 ([todo.md](todo.md) #3)
 - [x] Privacy policy effective date set ([todo.md](todo.md) #2)
 
 **Verification**

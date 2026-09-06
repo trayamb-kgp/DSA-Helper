@@ -22,6 +22,14 @@ const KEY_PREFIX = 'pendingPrompt:';
 interface PendingEntry {
   prompt: string;
   createdAt: number;
+  /** Whether the content script should auto-submit this prompt ([D050]). */
+  autoSubmit: boolean;
+}
+
+/** What a claim hands back: the prompt and whether to auto-submit it. */
+export interface ClaimedPrompt {
+  prompt: string;
+  autoSubmit: boolean;
 }
 
 function keyFor(tabId: number): string {
@@ -44,15 +52,18 @@ function sessionArea(): chrome.storage.StorageArea {
 function isEntry(value: unknown): value is PendingEntry {
   if (typeof value !== 'object' || value === null) return false;
   const entry = value as { prompt?: unknown; createdAt?: unknown };
+  // `autoSubmit` is not required to be present: an entry from before this field
+  // existed is still a valid prompt, and a missing flag reads as false below.
   return typeof entry.prompt === 'string' && typeof entry.createdAt === 'number';
 }
 
 export async function putPendingPrompt(
   tabId: number,
   prompt: string,
+  autoSubmit: boolean,
   now = Date.now(),
 ): Promise<void> {
-  const entry: PendingEntry = { prompt, createdAt: now };
+  const entry: PendingEntry = { prompt, createdAt: now, autoSubmit };
   await sessionArea().set({ [keyFor(tabId)]: entry });
 }
 
@@ -66,7 +77,7 @@ export async function putPendingPrompt(
 export async function claimPendingPrompt(
   tabId: number,
   now = Date.now(),
-): Promise<string | null> {
+): Promise<ClaimedPrompt | null> {
   const key = keyFor(tabId);
   const area = sessionArea();
 
@@ -76,7 +87,7 @@ export async function claimPendingPrompt(
 
   if (!isEntry(entry)) return null;
   if (now - entry.createdAt > PROMPT_TTL_MS) return null;
-  return entry.prompt;
+  return { prompt: entry.prompt, autoSubmit: entry.autoSubmit === true };
 }
 
 /** Called when a tab closes, so a prompt nobody claimed does not linger. */

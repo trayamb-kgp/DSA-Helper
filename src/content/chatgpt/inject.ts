@@ -1,24 +1,33 @@
 /**
  * ChatGPT content script.
  *
- * Claims the prompt prepared for this tab, types it into the composer, shows
- * the review banner, and stops. It never submits: the human review step is a
- * security control, not a preference (D003).
+ * Claims the prompt prepared for this tab and types it into the composer. By
+ * default it then shows the review banner and stops -- the human review step is
+ * a prompt-injection safeguard (D003). Only if the user has turned on the
+ * auto-submit opt-in does it submit, and only after verifying the insertion
+ * landed (D050).
  *
  * ---------------------------------------------------------------------------
- * NEVER SUBMIT.
+ * SUBMIT ONLY WITH CONSENT, AND ONLY WHAT WAS VERIFIED.
  *
- * No `Enter` key event, no click on a send button, no `form.submit()` or
- * `requestSubmit()`, anywhere in this file. The prompt contains text scraped
- * from a page nobody controls, and a human reading it before sending is the
- * last line of defence against prompt injection (architecture.md section 9.2).
- * A future request to auto-send needs a decision entry that reckons with that,
- * not a patch here. `inject.test.ts` greps this file for those patterns.
+ * The prompt carries text scraped from a page nobody controls, so a human
+ * reading it before it is sent is the last line of defence against prompt
+ * injection (architecture.md section 9.2). That default does not change: the
+ * extension submits nothing unless the user has explicitly opted in (D050,
+ * which reverses the never-submit default of D003), and even then only:
+ *   - after read-back verification of the insertion has passed, and
+ *   - by clicking ChatGPT's own send button once -- never a synthetic `Enter`
+ *     key event, never `form.submit()` / `requestSubmit()`, and
+ *   - never on the clipboard-fallback path.
+ * `inject.test.ts` locks this down: no key-event or form submission may appear
+ * in this file, the submit gate is a single tested predicate, and the send
+ * button is only clicked when it is actually enabled.
  * ---------------------------------------------------------------------------
  *
  * Everything ChatGPT-specific lives here -- selector, timeout, insertion
- * strategies -- so a redesign is a single-file fix. When it does break, the
- * prompt goes to the clipboard rather than being lost (spec.md section 7.2).
+ * strategies, send button -- so a redesign is a single-file fix. When it does
+ * break, the prompt goes to the clipboard rather than being lost (spec.md
+ * section 7.2).
  */
 
 import type { Msg } from '../../core/types';
@@ -46,6 +55,7 @@ const BANNER_ID = 'dsa-helper-banner';
 const BANNER_VISIBLE_MS = 12_000;
 
 const BANNER_TEXT = 'Prompt inserted by DSA Helper — review it, then press Enter.';
+const SUBMITTED_TEXT = 'Prompt submitted by DSA Helper.';
 const CLIPBOARD_FALLBACK =
   "Couldn't fill the composer — the prompt is on your clipboard, press Ctrl+V.";
 const TOTAL_FAILURE =
@@ -61,15 +71,16 @@ const TOTAL_FAILURE =
  * (D017). Returning null is the normal case -- most visits to ChatGPT are
  * ordinary ones, and this script must do nothing at all on those.
  */
-async function claimPrompt(): Promise<string | null> {
+async function claimPrompt(): Promise<{ prompt: string; autoSubmit: boolean } | null> {
   const request: Msg = { type: 'CLAIM_PENDING_PROMPT' };
   const reply: unknown = await chrome.runtime.sendMessage(request).catch(() => null);
 
   if (typeof reply !== 'object' || reply === null) return null;
   if ((reply as Msg).type !== 'PENDING_PROMPT') return null;
 
-  const { prompt } = reply as Extract<Msg, { type: 'PENDING_PROMPT' }>;
-  return typeof prompt === 'string' && prompt !== '' ? prompt : null;
+  const { prompt, autoSubmit } = reply as Extract<Msg, { type: 'PENDING_PROMPT' }>;
+  if (typeof prompt !== 'string' || prompt === '') return null;
+  return { prompt, autoSubmit: autoSubmit === true };
 }
 
 // --- finding the composer ---------------------------------------------------
@@ -223,6 +234,73 @@ export function insertPrompt(el: HTMLElement, prompt: string): boolean {
   return false;
 }
 
+// --- submitting (opt-in only, D050) -----------------------------------------
+
+/**
+ * ChatGPT's send button, preferred-first.
+ *
+ * Verified: 2026-09-06, derived from documented markup rather than a live page
+ * -- the same caveat as `COMPOSER_SELECTORS`, and the value most likely to need
+ * updating after a redesign. Deliberately no `type="submit"` selector: the
+ * only sanctioned submit is a click on this button, never a form submission.
+ */
+const SEND_BUTTON_SELECTORS = [
+  'button[data-testid="send-button"]',
+  '#composer-submit-button',
+  'button[aria-label="Send prompt"]',
+] as const;
+
+const SEND_ENABLE_TIMEOUT_MS = 3000;
+const SEND_POLL_MS = 100;
+
+function findSendButton(): HTMLButtonElement | null {
+  for (const selector of SEND_BUTTON_SELECTORS) {
+    try {
+      const el = document.querySelector<HTMLButtonElement>(selector);
+      if (el) return el;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function isEnabled(button: HTMLButtonElement): boolean {
+  return !button.disabled && button.getAttribute('aria-disabled') !== 'true';
+}
+
+/**
+ * The submit gate, as one predicate so it is trivially testable: submit only
+ * when the insertion verified *and* the user opted in (D050). Anything less
+ * and the extension leaves the prompt for the user, exactly as D003 wants.
+ */
+export function shouldSubmit(inserted: boolean, autoSubmit: boolean): boolean {
+  return inserted && autoSubmit;
+}
+
+/**
+ * Wait briefly for the send button to be present and enabled, then click it
+ * once. Returns whether it was clicked.
+ *
+ * The wait matters: ChatGPT enables the button a beat after the composer
+ * registers input, so a single synchronous check would usually find it
+ * disabled. If it never becomes ready, this returns false and the caller falls
+ * back to the manual review path -- it never fires into a disabled composer,
+ * and never dispatches a key event to force the issue.
+ */
+export async function submitComposer(timeoutMs = SEND_ENABLE_TIMEOUT_MS): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const button = findSendButton();
+    if (button && isEnabled(button)) {
+      button.click();
+      return true;
+    }
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, SEND_POLL_MS));
+  }
+}
+
 // --- telling the user -------------------------------------------------------
 
 /**
@@ -286,10 +364,11 @@ async function fallbackToClipboard(prompt: string): Promise<void> {
 // --- entry ------------------------------------------------------------------
 
 export async function run(): Promise<void> {
-  const prompt = await claimPrompt();
+  const claim = await claimPrompt();
   // No prompt for this tab is the ordinary case: someone opened ChatGPT
   // themselves. Do nothing, silently.
-  if (!prompt) return;
+  if (!claim) return;
+  const { prompt, autoSubmit } = claim;
 
   const composer = await waitForComposer();
   if (!composer) {
@@ -297,8 +376,19 @@ export async function run(): Promise<void> {
     return;
   }
 
-  if (!insertPrompt(composer, prompt)) {
+  const inserted = insertPrompt(composer, prompt);
+  if (!inserted) {
+    // The clipboard fallback never auto-submits: a prompt that could not be
+    // verifiably inserted must not be sent (D050).
     await fallbackToClipboard(prompt);
+    return;
+  }
+
+  // Opt-in only, and only after the insertion verified (D050). If the send
+  // button never becomes ready, fall through to the review banner rather than
+  // firing into a disabled composer -- the prompt is inserted and waiting.
+  if (shouldSubmit(inserted, autoSubmit) && (await submitComposer())) {
+    toastInPage('info', SUBMITTED_TEXT);
     return;
   }
 

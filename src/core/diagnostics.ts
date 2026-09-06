@@ -74,11 +74,16 @@ export function fieldReports(context: ProblemContext): FieldReport[] {
     sized(context.constraintsMd, 'constraints'),
     context.code
       ? { field: 'code', status: 'ok', detail: `${context.code.length} chars` }
-      : {
-          field: 'code',
-          status: codeExpectedAbsent ? 'expected' : 'missing',
-          detail: 'not captured',
-        },
+      : // The stored extraction drops the code content (D018): the code text
+        // never touches disk, so a non-`none` source means a solution *was*
+        // captured at action time, it is simply not persisted here.
+        context.codeSource !== 'none'
+        ? { field: 'code', status: 'ok', detail: `captured via ${context.codeSource}, not stored` }
+        : {
+            field: 'code',
+            status: codeExpectedAbsent ? 'expected' : 'missing',
+            detail: 'not captured',
+          },
     { field: 'codeSource', status: 'ok', detail: context.codeSource },
     context.language
       ? { field: 'language', status: 'ok', detail: context.language }

@@ -60,7 +60,7 @@ afterEach(() => {
 
 describe('storage area (D018)', () => {
   it('writes the prompt to session and nowhere else', async () => {
-    await putPendingPrompt(42, 'the prompt');
+    await putPendingPrompt(42, 'the prompt', false);
 
     expect(Object.keys(areas.session)).toHaveLength(1);
     // The user's code never touches disk.
@@ -69,19 +69,30 @@ describe('storage area (D018)', () => {
   });
 
   it('keys the entry by tab id', async () => {
-    await putPendingPrompt(42, 'a');
+    await putPendingPrompt(42, 'a', false);
     expect(Object.keys(areas.session)[0]).toContain('42');
   });
 });
 
 describe('claiming is one-shot', () => {
   it('returns the prompt the first time', async () => {
-    await putPendingPrompt(42, 'the prompt');
-    await expect(claimPendingPrompt(42)).resolves.toBe('the prompt');
+    await putPendingPrompt(42, 'the prompt', false);
+    await expect(claimPendingPrompt(42)).resolves.toEqual({
+      prompt: 'the prompt',
+      autoSubmit: false,
+    });
+  });
+
+  it('carries the auto-submit decision back with the prompt (D050)', async () => {
+    await putPendingPrompt(42, 'the prompt', true);
+    await expect(claimPendingPrompt(42)).resolves.toEqual({
+      prompt: 'the prompt',
+      autoSubmit: true,
+    });
   });
 
   it('returns null the second time, and leaves nothing behind', async () => {
-    await putPendingPrompt(42, 'the prompt');
+    await putPendingPrompt(42, 'the prompt', false);
     await claimPendingPrompt(42);
 
     await expect(claimPendingPrompt(42)).resolves.toBeNull();
@@ -89,14 +100,17 @@ describe('claiming is one-shot', () => {
   });
 
   it('deletes an expired entry rather than leaving it to be claimed later', async () => {
-    await putPendingPrompt(42, 'stale', 0);
+    await putPendingPrompt(42, 'stale', false, 0);
     await expect(claimPendingPrompt(42, PROMPT_TTL_MS + 1)).resolves.toBeNull();
     expect(areas.session).toEqual({});
   });
 
   it('still serves a prompt right up to the TTL', async () => {
-    await putPendingPrompt(42, 'fresh', 0);
-    await expect(claimPendingPrompt(42, PROMPT_TTL_MS)).resolves.toBe('fresh');
+    await putPendingPrompt(42, 'fresh', false, 0);
+    await expect(claimPendingPrompt(42, PROMPT_TTL_MS)).resolves.toEqual({
+      prompt: 'fresh',
+      autoSubmit: false,
+    });
   });
 
   it('has nothing to say about a tab that was never given one', async () => {
@@ -106,28 +120,34 @@ describe('claiming is one-shot', () => {
 
 describe('isolation between tabs (architecture §5.3)', () => {
   it('keeps two prompts apart rather than letting one overwrite the other', async () => {
-    await putPendingPrompt(1, 'first problem');
-    await putPendingPrompt(2, 'second problem');
+    await putPendingPrompt(1, 'first problem', false);
+    await putPendingPrompt(2, 'second problem', false);
 
     // The case this exists for: firing the action from two problem tabs in
     // quick succession. A global slot would hand both tabs the same prompt.
-    await expect(claimPendingPrompt(2)).resolves.toBe('second problem');
-    await expect(claimPendingPrompt(1)).resolves.toBe('first problem');
+    await expect(claimPendingPrompt(2)).resolves.toEqual({
+      prompt: 'second problem',
+      autoSubmit: false,
+    });
+    await expect(claimPendingPrompt(1)).resolves.toEqual({
+      prompt: 'first problem',
+      autoSubmit: false,
+    });
   });
 
   it('claiming one does not disturb the other', async () => {
-    await putPendingPrompt(1, 'first');
-    await putPendingPrompt(2, 'second');
+    await putPendingPrompt(1, 'first', false);
+    await putPendingPrompt(2, 'second', false);
     await claimPendingPrompt(1);
 
     expect(Object.keys(areas.session)).toHaveLength(1);
-    await expect(claimPendingPrompt(2)).resolves.toBe('second');
+    await expect(claimPendingPrompt(2)).resolves.toEqual({ prompt: 'second', autoSubmit: false });
   });
 });
 
 describe('dropPendingPrompt', () => {
   it('removes a prompt when its tab closes', async () => {
-    await putPendingPrompt(42, 'the prompt');
+    await putPendingPrompt(42, 'the prompt', false);
     await dropPendingPrompt(42);
     expect(areas.session).toEqual({});
   });
@@ -144,11 +164,14 @@ describe('dropPendingPrompt', () => {
 
 describe('sweepExpired', () => {
   it('removes only the entries past their TTL', async () => {
-    await putPendingPrompt(1, 'old', 0);
-    await putPendingPrompt(2, 'new', PROMPT_TTL_MS);
+    await putPendingPrompt(1, 'old', false, 0);
+    await putPendingPrompt(2, 'new', false, PROMPT_TTL_MS);
 
     await expect(sweepExpired(PROMPT_TTL_MS + 1)).resolves.toBe(1);
-    await expect(claimPendingPrompt(2, PROMPT_TTL_MS + 1)).resolves.toBe('new');
+    await expect(claimPendingPrompt(2, PROMPT_TTL_MS + 1)).resolves.toEqual({
+      prompt: 'new',
+      autoSubmit: false,
+    });
   });
 
   it('removes an entry it cannot read, since nothing can ever claim it', async () => {
@@ -159,14 +182,14 @@ describe('sweepExpired', () => {
 
   it('leaves keys that are not ours alone', async () => {
     areas.session['someoneElse'] = 'value';
-    await putPendingPrompt(1, 'old', 0);
+    await putPendingPrompt(1, 'old', false, 0);
 
     await sweepExpired(PROMPT_TTL_MS + 1);
     expect(areas.session).toEqual({ someoneElse: 'value' });
   });
 
   it('does nothing when there is nothing stale', async () => {
-    await putPendingPrompt(1, 'fresh', 1000);
+    await putPendingPrompt(1, 'fresh', false, 1000);
     await expect(sweepExpired(1000)).resolves.toBe(0);
   });
 });

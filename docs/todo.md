@@ -28,11 +28,11 @@ Still blocks publishing — the Web Store requires a working contact — but it 
 
 ## 3. Licence
 
-- [x] Choose a licence — **MIT**
+- [x] Choose a licence — **PolyForm Strict 1.0.0**
 - [x] Add a `LICENSE` file
 - [x] Update the Licence section of [README.md](../README.md)
 
-**Notes:** _Done 2026-09-03. MIT over Apache 2.0 (no patent surface worth the extra length here) and over GPL (no reason to constrain anyone building on it). `package.json` carries `"license": "MIT"`; `private: true` stays, since that only guards against an accidental npm publish and has nothing to do with the licence._
+**Notes:** _Originally MIT (2026-09-03). Changed to **PolyForm Strict 1.0.0** on 2026-09-06 ([D048](decisions.md#d048)): the owner does not want the code forked or republished, and MIT's grant is precisely the right to fork, so a reworded MIT was not an option. PolyForm Strict is the standard source-available licence that keeps the source readable and runnable for noncommercial/personal use while withholding redistribution and modified-version distribution. `package.json` carries `"license": "PolyForm-Strict-1.0.0"`; `private: true` stays, unrelated to the licence. The repo stays **public** so the privacy-policy URL keeps resolving ([D046](decisions.md#d046)) — public + source-available, not open-source._
 
 ---
 

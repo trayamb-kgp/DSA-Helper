@@ -2,7 +2,7 @@
 
 **A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-06
 
 ---
 
@@ -32,13 +32,14 @@
 | **Product & scope** ||||
 | [D001](#d001) | Four platforms; problem pages only | Accepted | 2026-09-01 |
 | [D002](#d002) | Three trigger surfaces, no on-page floating button | Accepted | 2026-09-01 |
-| [D003](#d003) | Prompt is injected into ChatGPT but never sent | Accepted | 2026-09-01 |
+| [D003](#d003) | Prompt is injected into ChatGPT but never sent | Accepted (narrowed by [D050](#d050)) | 2026-09-01 |
 | [D004](#d004) | ChatGPT is the only AI destination in v1 | Accepted | 2026-09-01 |
 | [D005](#d005) | Both texts are user-owned templates | Accepted | 2026-09-01 |
 | [D006](#d006) | YouTube query is configured, not edited per problem | Accepted | 2026-09-01 |
 | [D007](#d007) | Contest pages get no special handling | Accepted (extended 2026-09-02) | 2026-09-01 |
 | [D008](#d008) | Clipboard action and history included in v1 | Accepted | 2026-09-01 |
 | [D009](#d009) | Name "DSA Helper"; icons generated, not sourced | Accepted | 2026-09-01 |
+| [D050](#d050) | Auto-submit to ChatGPT as an opt-in, off by default | Accepted | 2026-09-06 |
 | **Architecture** ||||
 | [D010](#d010) | No backend, no network calls of our own | Accepted | 2026-09-01 |
 | [D011](#d011) | React + TypeScript + Vite | Accepted | 2026-09-01 |
@@ -66,6 +67,8 @@
 | [D031](#d031) | Diagnostics and clipboard bug reports instead of telemetry | Accepted | 2026-09-01 |
 | [D032](#d032) | No remote selector configuration | Revisit | 2026-09-01 |
 | [D033](#d033) | Content-relay position stated publicly | Accepted | 2026-09-02 |
+| [D048](#d048) | Licence is PolyForm Strict, not MIT — source-available, no forking | Accepted | 2026-09-06 |
+| [D049](#d049) | Non-affiliation disclaimer; framed "nothing leaves your device" | Accepted | 2026-09-06 |
 | **Implementation** ||||
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
@@ -125,7 +128,9 @@
 
 **Consequences.** Depends on ChatGPT's composer internals, which is the single most fragile part of the project. Requires a verified-insertion check and a clipboard fallback. Accepted as the cost of the feature working at all.
 
-**Status.** Accepted · 2026-09-01 · see [spec.md](spec.md) §7.2, [architecture.md](architecture.md) §13
+**Narrowed by [D050](#d050) (2026-09-06):** the never-submit behaviour remains the **default**, but a user may now opt in to auto-submit. The security reasoning above is why that opt-in is off by default, warned, and gated on verified insertion.
+
+**Status.** Accepted (narrowed by [D050](#d050)) · 2026-09-01 · see [spec.md](spec.md) §7.2, [architecture.md](architecture.md) §13, [D050](#d050)
 
 <a id="d004"></a>
 ### D004 — ChatGPT is the only AI destination in v1
@@ -752,6 +757,75 @@ This does mean the e2e browser is not the primary shipping target. That is accep
 - **`test.fail()` documents a known live bug in the suite itself.** The LeetCode canaries assert the number that was lost; marking them expected-failure kept the requirement and the break both recorded, and made the fix self-announcing — a fixed extraction makes them "unexpectedly pass", the cue to remove the marker. That is exactly what happened: the lane shipped with the markers, the `leetcode.ts` `looksLikeQuestion` fix landed in the very next change, the rows flipped to unexpected passes, and the markers came off — they are now ordinary regression guards. The extraction fix was deliberately a *separate* change from the test lane, so the lane's value (catching drift the fixtures cannot) is recorded independently of any one bug. A nightly CI workflow for the lane is documented as intent, not built here.
 
 **Status.** Accepted · 2026-09-05 (live lane added 2026-09-06) · see [D045](#d045), [D013](#d013), [TESTING.md](TESTING.md) §1.2, [../e2e/README.md](../e2e/README.md), [implementation-plan-2](implementation-plan/implementation-plan-2.md)
+
+<a id="d048"></a>
+### D048 — Licence is PolyForm Strict, not MIT
+
+**Decision.** The project is licensed under **PolyForm Strict 1.0.0**, a source-available licence, replacing the MIT licence chosen at first release. The source stays public and readable, and may be run for permitted (noncommercial and personal) purposes, but **redistribution and distribution of changed or derivative works are not permitted**. `package.json` carries `"license": "PolyForm-Strict-1.0.0"`.
+
+**Context.** The MIT choice was recorded in the Phase 8 Q&A of [implementation-plan-1](implementation-plan/implementation-plan-1.md) ("no reason to constrain anyone building on it"). The owner's position changed: they do not want the code forked or republished at all. MIT cannot express that — its entire grant *is* the right to fork, copy, and redistribute, so a "reworded MIT" is a contradiction, not an option.
+
+**Reasoning.** The real goal is "no forks", and the closest standard, named licence is PolyForm Strict: it withholds redistribution and modified-version distribution while leaving the source readable and runnable. Two things it deliberately does **not** do, recorded so they are not rediscovered as surprises:
+
+1. **A licence cannot hide the code.** A Chrome extension ships its bundled source to every user's disk; anyone can read it. PolyForm Strict makes copying or republishing *unlawful* (grounds for a Web Store or DMCA takedown), not *impossible*. That legal footing is the actual protection.
+2. **Source-available is not open-source, and does not touch the behavioural transparency story.** The repository stays **public** — which [D046](#d046) and `core/links.ts`'s `privacyUrl()` depend on, since the Web Store requires a reachable privacy-policy URL. Public repo + PolyForm Strict = source-available. The "nothing leaves your browser" privacy posture is about what the code *does*, not who may reuse it, and is unchanged.
+
+**Alternatives.** Plain all-rights-reserved / no-licence (rejected: the owner preferred a named, standard licence over bespoke wording); PolyForm Noncommercial (rejected: it permits forking and modification for any noncommercial purpose, which is the thing being prevented); BUSL-1.1 (rejected: it auto-converts to open-source after a term, and eventual open-sourcing is not wanted); keeping MIT (rejected: see Context). A hand-edited proprietary text was rejected in favour of the canonical PolyForm Strict text, unmodified — editing a named licence loses the point of using one.
+
+**Consequences.** No community contributions or third-party redistribution are permitted; this is intended. `README.md`, `docs/STORE-LISTING.md`, `docs/todo.md` #3, and `package.json` are updated to match. The icons licence note ([D009](#d009)) is unrelated and unchanged. Supersedes the Phase 8 MIT choice.
+
+**Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 3, [D046](#d046), [D009](#d009), [../LICENSE](../LICENSE)
+
+<a id="d049"></a>
+### D049 — Non-affiliation disclaimer, framed "nothing leaves your device"
+
+**Decision.** Ship a standalone [`DISCLAIMER.md`](../DISCLAIMER.md) (linked from the README and the store listing) that (a) states DSA Helper is **not affiliated with** LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI/ChatGPT, (b) describes the extension's behaviour honestly, and (c) places responsibility for complying with each site's terms of service on the user. The behaviour is framed as **"nothing leaves your device"**, never as "stores nothing".
+
+**Context.** The owner wanted the extension to be "legally safe", and proposed wording along the lines of "the extension is not storing the information ... it is just an automation tool", motivated by sites like LinkedIn prohibiting scraping. Two problems with that framing had to be resolved first.
+
+**Reasoning.**
+
+1. **A disclaimer documents conduct; it does not override a site's ToS or copyright.** So the real protection is the factual properties of the extension — no network requests ([D010](#d010)), on-device-only storage ([D018](#d018)), least-privilege permissions ([D021](#d021)), and single user-initiated actions on content already on screen — and the disclaimer's job is only to state those truthfully and to put ToS compliance on the user. Calling it "just an automation tool" carries no legal weight and is not relied on.
+2. **"Stores nothing" was false.** The extension stores settings, history, and a most-recent extraction locally. The accurate, still-strong claim is that this information **never leaves the device**. In the course of writing this, a real defect surfaced: `lastExtraction` was persisting the full `ProblemContext` — **including the user's code** — to `chrome.storage.local`, contradicting both [PRIVACY.md](PRIVACY.md) and [D018](#d018) ("code never written to disk"). Fixed by stripping `code` before storage (keeping `codeSource` so diagnostics can still report that a solution was captured); `actions.test.ts` and `diagnostics.test.ts` now pin the stripped behaviour. This is a [D018](#d018) enforcement fix, recorded here because it is what lets the disclaimer and privacy policy make the "code never touches disk" claim honestly.
+
+**ToS review (2026-09-06).** The target sites' terms were read before finalising the wording, because they bear on how the tool may be used:
+
+- **GeeksforGeeks** — the strictest: expressly prohibits automated/non-human access (bots, scripts) and "data mining, robots, or similar data gathering and extraction tools", and prohibits reproducing its content.
+- **CodeChef** — expressly prohibits scraping and manipulation of platform content; content may be copied/printed for personal use only, notices intact.
+- **LeetCode** — content is copyrighted and LeetCode's exclusive property; users must abide by its copyright restrictions (no clause specific to browser extensions was found).
+- **Codeforces** — only general prohibitions (no damaging use, no commercialising content); nothing specific to automation surfaced.
+- **OpenAI/ChatGPT** — prohibits *programmatically extracting* Output and bypassing protective measures; the extension inserts input into the composer and does **not** read or extract ChatGPT's responses.
+
+Because several platforms restrict automated access and content reproduction, the disclaimer **does not claim** that any given use is permitted — it states the mild, user-initiated, single-page nature of the tool and makes the user responsible for their own compliance. This is a periodic check: the review date is recorded in `DISCLAIMER.md`.
+
+**Alternatives.** The owner's "not storing / just an automation tool" wording (rejected: partly false, and legally inert); folding the disclaimer into the README only (rejected: a standalone doc is easier to link from the store listing and to point users at); claiming ToS compliance (rejected: not true across all sites, and not the extension author's to assert on the user's behalf).
+
+**Consequences.** `DISCLAIMER.md` exists and is linked from `README.md` and `docs/STORE-LISTING.md` (which gains a non-affiliation block). `PRIVACY.md` gains a row disclosing the local most-recent-extraction storage and its exclusion of code. The code-on-disk fix slightly changes the options-page diagnostics wording for a captured solution ("captured via …, not stored"). The ToS findings will drift and must be re-reviewed periodically.
+
+**Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 4, [D010](#d010), [D018](#d018), [D031](#d031), [PRIVACY.md](PRIVACY.md), [../DISCLAIMER.md](../DISCLAIMER.md)
+
+<a id="d050"></a>
+### D050 — Auto-submit to ChatGPT is an opt-in, off by default
+
+**Decision.** Add a setting, `autoSubmitChatGpt`, **off by default**. When it is on, the ChatGPT content script submits the prompt automatically — but only after the insertion has been read-back-verified, and only by clicking ChatGPT's own send button once. When it is off (the default), behaviour is exactly as before: the prompt is inserted and left for the user. This **narrows** [D003](#d003); it does not overturn it.
+
+**Context.** [D003](#d003) made "insert but never submit" the behaviour, and called the pause a security control: the prompt carries text scraped from a problem page nobody controls, and a human reading it before sending is the last line of defence against prompt injection. `inject.ts` and `inject.test.ts` enforced it by asserting **no** submit-shaped code existed in the file at all. The user asked for auto-submit as a convenience. `inject.ts`'s own header said the right way to grant that was "a decision entry that reckons with [the security argument], not a patch here" — this is that entry.
+
+**Reasoning — the reckoning, not a rubber stamp.** D003's prompt-injection argument is real and is *not* dismissed here. Auto-submit removes the human pre-read, so a malicious or manipulative problem statement can now reach the model without a person seeing it first. That risk is accepted only because it is bounded on every side:
+
+- **Off by default.** No existing user's behaviour changes. The safe path stays the path you get without asking.
+- **Opt-in and clearly warned.** The options toggle states that the prompt is built from a page the extension doesn't control and that reading it first is a safeguard.
+- **Only what was verified.** Submit fires only after the existing read-back check confirms the whole prompt actually landed in the composer — never a half-inserted or wrong-language prompt, and never on the clipboard-fallback path (a prompt that could not be inserted is never sent).
+- **The send button, not a key event.** Submission clicks ChatGPT's own send button, and only when it is enabled; it never dispatches a synthetic `Enter` (which could inject a newline or fire into a not-yet-ready composer) and never submits a form directly.
+- **The other injection mitigation still stands.** Quoted problem text is still wrapped in named tags so the model reads it as reference, not instructions ([D040](#d040)) — that guard now carries more weight, since the human pre-read is no longer guaranteed.
+
+**The test guard was narrowed, not removed.** A security control enforced by *absence* erodes quietly, so it was not simply deleted. `inject.test.ts` still forbids key-event and form submission outright, still requires the rationale to be documented in the file, and now pins the gate as a tested predicate (`shouldSubmit` is true only when inserted **and** opted-in) plus the enabled-only send behaviour. Hiding the submit in a sibling file to keep the old grep green was explicitly rejected as the evasion the test exists to catch.
+
+**Alternatives.** Keep D003 absolute (rejected: the user wants the convenience, and it can be offered safely); auto-submit on by default (rejected: reverses a security default for everyone, including those who never asked); submit via a synthetic `Enter` (rejected: newline risk and it side-steps the button's enabled state); read the setting in the content script (rejected: the worker already reads settings, so the decision travels with the prompt and `inject.ts` gains no settings dependency).
+
+**Consequences.** `Settings` gains `autoSubmitChatGpt`; the `PENDING_PROMPT` message and the session entry carry an `autoSubmit` flag decided by the worker at action time; `inject.ts` gains a gated `submitComposer`. The options toggle is shown only when auto-inject is on. User-facing copy that promised the extension "never sends" is softened to "off by default" (store listing, `PRIVACY.md`, `TESTING.md`). The send-button selector is now a second ChatGPT-specific string that a redesign can break — when it does, auto-submit degrades to the review banner rather than failing.
+
+**Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 1, [D003](#d003), [D040](#d040), [architecture.md](architecture.md) §9.2
 
 ---
 
