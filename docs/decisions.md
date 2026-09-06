@@ -80,7 +80,7 @@
 | [D044](#d044) | Diagnostics report the last extraction, not a live one | Accepted | 2026-09-03 |
 | [D045](#d045) | Entry points are uniquely named, and the built artifact is checked | Accepted | 2026-09-03 |
 | [D046](#d046) | Outward-facing URLs live in one module and degrade to nothing | Accepted | 2026-09-03 |
-| [D047](#d047) | End-to-end tests run on the built extension, on Edge | Accepted | 2026-09-05 |
+| [D047](#d047) | End-to-end tests run on the built extension, on Edge (+ live drift lane) | Accepted | 2026-09-06 |
 
 ---
 
@@ -745,7 +745,13 @@ This does mean the e2e browser is not the primary shipping target. That is accep
 
 **Consequences.** The options page, previously covered by nothing, now has a rendering regression net. `PW_HEADLESS=1` uses Chrome's *new* headless mode, since the old one loads no extensions. Everything Playwright writes lands under `e2e/output/` (gitignored), including the six named theme screenshots. The next specs to grow are the popup and, once fixtures can stand in for a live site, content-script extraction — the harness's `seedStorage` and page helpers exist for exactly that. Playwright's Chromium was still installed (`npx playwright install chromium`) so CI has the portable path without extra setup.
 
-**Status.** Accepted · 2026-09-05 · see [D045](#d045), [D013](#d013), [TESTING.md](TESTING.md) §1.2, [../e2e/README.md](../e2e/README.md)
+**Addendum (2026-09-06) — a live lane for extraction drift.** A user reported a numberless YouTube search on a LeetCode problem; driving the built extension against the live page reproduced it, and the reason no test caught it is structural — every existing check reads a *frozen* input (source, `dist/`, or a saved fixture), so none can see the live site change shape under a fixture ([implementation-plan-2](implementation-plan/implementation-plan-2.md)). The answer is a second Playwright **project**, not a second harness:
+
+- **Two projects split by filename** in `playwright.config.ts`: `e2e` (everything except `*.live.spec.ts`) and `live` (only `*.live.spec.ts`). `npm run test:e2e` → `--project=e2e`; `npm run test:e2e:live` → `--project=live`. The split is chosen over an env flag or a title tag because it is visible in the config itself and in the file name, not hidden inside a spec. Both projects reuse the one `fixtures.ts` and Edge — a live lane on a different loader would be testing a different thing.
+- **The live lane is opt-in and never a required check.** A network-dependent test must never be able to redden the hermetic gate, so it is off `npm run verify` entirely. Intended CI treatment: the offline `e2e` project may run on push; the `live` project runs manually or on a schedule, never as a blocking check. A red live run means "the site moved, go look", not "the build broke". An unreachable or un-hydrated page (an outage, or a headless Cloudflare block) is `skip`ped, not failed — only a page that loaded and dropped a field fails.
+- **`test.fail()` documents a known live bug in the suite itself.** The LeetCode canaries assert the number that is currently lost; marking them expected-failure keeps the requirement and the break both recorded, and makes the fix self-announcing — when extraction is fixed they "unexpectedly pass", which is the cue to remove the marker. The extraction fix is deliberately *not* part of this test-lane change; it is a tracked follow-up. A nightly CI workflow for the lane is documented as intent, not built here.
+
+**Status.** Accepted · 2026-09-05 (live lane added 2026-09-06) · see [D045](#d045), [D013](#d013), [TESTING.md](TESTING.md) §1.2, [../e2e/README.md](../e2e/README.md), [implementation-plan-2](implementation-plan/implementation-plan-2.md)
 
 ---
 

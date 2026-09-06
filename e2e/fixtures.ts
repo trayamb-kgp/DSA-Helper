@@ -32,6 +32,7 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
+import type { ProblemContext } from '../src/core/types';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
 /** The unpacked build Chrome loads. Kept in sync with the manifest, not source. */
@@ -73,6 +74,45 @@ export async function seedStorage(worker: Worker, areas: SeedAreas): Promise<voi
     if (data.local) await chrome.storage.local.set(data.local);
     if (data.session) await chrome.storage.session.set(data.session);
   }, areas);
+}
+
+/**
+ * What the live lane gets back from an extraction attempt: the same
+ * `CONTEXT_RESULT` the popup would receive, or a shaped reason it could not.
+ * `ok: false` distinguishes "no such tab / no adapter / the page threw" from a
+ * real context, so a spec can skip on an outage instead of asserting on junk.
+ */
+export interface ExtractResult {
+  ok: boolean;
+  /** Present when `ok` is false: why extraction did not produce a context. */
+  error?: string;
+  context?: ProblemContext;
+  diagnostics?: string[];
+}
+
+/**
+ * Run the extension's own extraction against a *live* tab, exactly as the popup
+ * does: find the open tab whose URL contains `urlPart`, send it EXTRACT_CONTEXT,
+ * and return its CONTEXT_RESULT.
+ *
+ * This runs inside the service worker because a Playwright `Page` carries no
+ * Chrome tab id, and only the extension can address a content script by tab.
+ * A page no adapter claims replies `null` (not a failure) — reported here as
+ * `ok: false` so the caller decides whether that is a skip or a bug.
+ */
+export async function extractContext(worker: Worker, urlPart: string): Promise<ExtractResult> {
+  return worker.evaluate(async (part: string): Promise<ExtractResult> => {
+    const tabs = await chrome.tabs.query({});
+    const tab = tabs.find((t) => typeof t.url === 'string' && t.url.includes(part));
+    if (!tab || tab.id == null) return { ok: false, error: `no open tab matching "${part}"` };
+    try {
+      const reply = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_CONTEXT' });
+      if (!reply) return { ok: false, error: 'no adapter claimed the page (null reply)' };
+      return { ok: true, context: reply.context, diagnostics: reply.diagnostics };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  }, urlPart);
 }
 
 export const test = base.extend<{

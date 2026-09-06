@@ -14,6 +14,15 @@ import { defineConfig } from '@playwright/test';
  * baselines: font rendering differs between machines, so a pixel diff would be
  * a cross-OS maintenance tax for no correctness signal. The assertions carry
  * the regression coverage; the images are for a human to eyeball (D047).
+ *
+ * Two projects split the suite by filename (D047):
+ *   - `e2e`  runs everything *except* `*.live.spec.ts` — hermetic, offline,
+ *            deterministic. This is the gate; `npm run test:e2e` runs it.
+ *   - `live` runs only `*.live.spec.ts` — the drift canaries that open real
+ *            problem pages. Opt-in (`npm run test:e2e:live`), never a required
+ *            check: a red run means "the site moved", not "the build broke".
+ * The offline lane must never depend on the network, so the split is by file,
+ * discoverable in this config, rather than an env flag hidden inside a spec.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -37,4 +46,12 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+
+  projects: [
+    // Offline lane: every `*.spec.ts` that is not `*.live.spec.ts`.
+    { name: 'e2e', testMatch: /(?<!\.live)\.spec\.ts$/ },
+    // Live lane: only `*.live.spec.ts`. A moved site or a slow network is a
+    // retry-then-look situation, not a build failure — hence its own budget.
+    { name: 'live', testMatch: /\.live\.spec\.ts$/, retries: 2, timeout: 90_000 },
+  ],
 });

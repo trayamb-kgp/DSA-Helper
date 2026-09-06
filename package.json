@@ -12,7 +12,8 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "check:build": "node tools/check-build.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=e2e",
+    "test:e2e:live": "playwright test --project=live",
     "test:e2e:report": "playwright show-report e2e/output/report",
     "verify": "npm run typecheck && npm run test && npm run build && npm run check:build"
   },

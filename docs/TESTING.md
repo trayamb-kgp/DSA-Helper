@@ -4,7 +4,7 @@ How this extension is verified. Automated checks catch regressions in pure logic
 
 **Maintenance:** when a phase of the [implementation plan](implementation-plan/implementation-plan-1.md) adds behaviour, add its checks here in the same change. When a bug escapes to a user, add the case that would have caught it.
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-06
 
 ---
 
@@ -71,6 +71,27 @@ npm run test:e2e
 | Theme control drives `data-theme` across the six theme × system combinations | Each combination is screenshotted into the report and `e2e/output/screenshots/` |
 
 **It runs on Microsoft Edge by default**, because that is the Chromium here that loads an unpacked extension: Chrome stable (137+) dropped the `--load-extension` switch, and Playwright's bundled Chromium will not start on this machine. Edge serves `chrome-extension://` pages identically. Override with `PW_CHANNEL` ([D047](decisions.md)). See [../e2e/README.md](../e2e/README.md) for the full harness notes and its limits — keyboard shortcuts and native context-menu items **cannot** be driven this way, so the shortcut surface stays a manual check (§3b, §4).
+
+The suite above is the **offline `e2e` project**: hermetic, no network, safe as a gate. Everything so far reads a frozen input — source, the built artifact, or a bundled sample — so none of it can see the live site drift out from under a fixture. That is the failure a user hit ([implementation-plan-2](implementation-plan/implementation-plan-2.md)), and it needs a second, deliberately different lane.
+
+#### The live lane — extraction drift canaries
+
+A separate **`live` project** loads *real* problem pages and runs the extension's own extraction against them (the exact call the popup makes), then asserts the problem number survives. It is the one check that catches a site redesign before users do, and it is **opt-in** — never `npm run verify`, never a required check ([D047](decisions.md)).
+
+```bash
+npm run build
+npm run test:e2e:live
+```
+
+| Canary | Asserts | Status |
+|---|---|---|
+| Codeforces `1352/A` | number is `1352A`, and it reaches the YouTube query | passes |
+| CodeChef `FLOW001` | number is `FLOW001` | passes |
+| LeetCode `two-sum`, `distinct-subsequences` | number is `1`, `115` | **expected-failure** — see below |
+
+- **A red live run means "the site moved, go look" — not "the build is broken".** It is a pre-release and on-demand step. The offline `e2e` project may run on push; the `live` project runs manually (or, later, on a schedule), never as a required check.
+- **Run it headed.** LeetCode sits behind a Cloudflare interstitial a headless browser cannot clear, and extensions need a real window. `PW_HEADLESS=1` will be challenged; a challenged page never hydrates and is reported **skipped**, not failed — an outage or a headless block can never redden the lane. Run it with a window (the default).
+- **The LeetCode rows are `test.fail()` on purpose.** Every LeetCode problem currently loses its number — the reported bug, where the search came out `LeetCode Distinct Subsequences solution` with no `115`. The canaries document the requirement *and* the known break; when the extraction is fixed they will "unexpectedly pass", which is the cue to drop the marker and let them stand as real regression guards. The fix itself is a follow-up ([implementation-plan-2](implementation-plan/implementation-plan-2.md)), tracked separately from this test lane.
 
 ---
 
@@ -435,6 +456,7 @@ Against the budgets in [architecture.md](architecture.md) §7:
 The full submission checklist — store copy, permission justifications, screenshots, rollout — lives in [STORE-LISTING.md](STORE-LISTING.md) §8. This is the testing half of it.
 
 - [ ] `npm run verify` passes — typecheck, tests, build, and the checks against `dist/`
+- [ ] `npm run test:e2e:live` run headed; if a canary fails on **drift** (the page loaded but a field is now wrong), not an outage (skipped), re-capture the stale fixture ([todo.md](todo.md) #5) before release
 - [ ] Full smoke matrix passes **against a packaged build**, not a dev build
 - [ ] Every edge case in §4 verified
 - [ ] [CHANGELOG.md](CHANGELOG.md) updated, `[Unreleased]` cut to a version
