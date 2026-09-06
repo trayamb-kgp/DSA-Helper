@@ -84,8 +84,17 @@ describe('practice problem — embedded JSON path', () => {
     expect(meta.number).toBe('912');
     expect(meta.title).toBe('Sort an Array');
     expect(meta.difficulty).toBe('Medium');
-    // Three tags in the JSON, two in the DOM: proof the JSON path won.
-    expect(meta.tags).toEqual(['Array', 'Divide and Conquer', 'Sorting']);
+    // Eight tags in the JSON, two in the DOM: proof the JSON path won.
+    expect(meta.tags).toEqual([
+      'Array',
+      'Divide and Conquer',
+      'Sorting',
+      'Heap (Priority Queue)',
+      'Merge Sort',
+      'Bucket Sort',
+      'Radix Sort',
+      'Counting Sort',
+    ]);
     expect(meta.isLocked).toBe(false);
     expect(env.diagnostics).toContain('meta: embedded question JSON');
   });

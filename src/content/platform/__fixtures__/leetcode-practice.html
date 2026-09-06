@@ -1,34 +1,33 @@
 <!doctype html>
 <!--
-  LeetCode practice problem, trimmed to the statement region, the difficulty
-  chip and the Monaco editor lines. Exercises the preferred path: embedded
-  question JSON for metadata, Monaco .view-line elements for the DOM scrape.
+  LeetCode practice problem (912 Sort an Array), captured from live 2026-09-06
+  and trimmed to the statement region, the difficulty chip, the tag list and the
+  Monaco editor lines. Account markup (user status, avatar, session ids) scrubbed;
+  the question is trimmed to the fields the adapter reads.
 
-  The .view-line elements are deliberately out of document order, with their
-  real positions in `style="top"`, because that is how Monaco renders after a
-  scroll and it is the case a naive scrape gets wrong.
+  This fixture reproduces the shape that broke extraction: the embedded
+  React-Query state carries a `titleSlug`-only fragment in the questionDetail
+  query's queryKey, which the breadth-first walk reaches before the real question
+  (one level deeper, in state.data.question). Accepting that fragment on its slug
+  alone dropped the number -- so this fixture now guards the fix (leetcode.ts
+  looksLikeQuestion). Note the <title> carries NO leading number, exactly as live
+  does now: that is why the number must come from the question JSON, not the tab.
 
-  Account markup (avatar, username, session ids, premium banners) scrubbed.
+  The .view-line elements are deliberately out of document order, with their real
+  positions in style="top", because that is how Monaco renders after a scroll and
+  it is the case a naive scrape gets wrong.
 -->
 <html lang="en">
 <head>
-  <title>912. Sort an Array - LeetCode</title>
+  <title>Sort an Array - LeetCode</title>
 </head>
 <body>
   <div id="__next">
     <div class="flexlayout__tab">
-      <div class="text-title-large"><a href="/problems/sort-an-array/">912. Sort an Array</a></div>
-      <div class="text-difficulty-medium">Medium</div>
+      <a href="/problems/sort-an-array/" class="no-underline truncate cursor-text whitespace-normal">912. Sort an Array</a>
+      <div class="relative inline-flex items-center rounded-full text-difficulty-medium">Medium</div>
       <div data-track-load="description_content" class="elfjS">
-        <p>Given an array of integers <code>nums</code>, sort the array in <strong>ascending order</strong> and return it.</p>
-        <p><strong class="example">Example 1:</strong></p>
-        <pre><strong>Input:</strong> nums = [5,2,3,1]
-<strong>Output:</strong> [1,2,3,5]
-</pre>
-        <p><strong>Constraints:</strong></p>
-        <ul>
-          <li><code>1 &lt;= nums.length &lt;= 5 * 10<sup>4</sup></code></li>
-        </ul>
+        <p>Given an array of integers <code>nums</code>, sort the array in ascending order and return it.</p>
       </div>
       <div class="tags">
         <a href="/tag/array/">Array</a>
@@ -45,6 +44,6 @@
     </div>
   </div>
 
-  <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"dehydratedState":{"queries":[{"queryKey":["questionData","sort-an-array"],"state":{"data":{"question":{"questionId":"948","questionFrontendId":"912","title":"Sort an Array","titleSlug":"sort-an-array","difficulty":"Medium","isPaidOnly":false,"topicTags":[{"name":"Array","slug":"array"},{"name":"Divide and Conquer","slug":"divide-and-conquer"},{"name":"Sorting","slug":"sorting"}],"content":"<p>Given an array of integers <code>nums</code>, sort the array in <strong>ascending order</strong> and return it.</p>\n\n<p>You must solve the problem <strong>without using any built-in</strong> functions in <code>O(nlog(n))</code> time complexity and with the smallest space complexity possible.</p>\n\n<p><strong class='example'>Example 1:</strong></p>\n\n<pre><strong>Input:</strong> nums = [5,2,3,1]\n<strong>Output:</strong> [1,2,3,5]\n<strong>Explanation:</strong> After sorting the array, the positions of some numbers are not changed.\n</pre>\n\n<p><strong class='example'>Example 2:</strong></p>\n\n<pre><strong>Input:</strong> nums = [5,1,1,2,0,0]\n<strong>Output:</strong> [0,0,1,1,2,5]\n</pre>\n\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 &lt;= nums.length &lt;= 5 * 10<sup>4</sup></code></li>\n\t<li><code>-5 * 10<sup>4</sup> &lt;= nums[i] &lt;= 5 * 10<sup>4</sup></code></li>\n</ul>\n"}}}}]}}}}</script>
+  <script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"dehydratedState":{"queries":[{"state":{"data":{"question":{"title":"Sort an Array","titleSlug":"sort-an-array","questionId":"948","questionFrontendId":"912","difficulty":"Medium","isPaidOnly":false,"topicTags":[{"name":"Array","slug":"array"},{"name":"Divide and Conquer","slug":"divide-and-conquer"},{"name":"Sorting","slug":"sorting"},{"name":"Heap (Priority Queue)","slug":"heap-priority-queue"},{"name":"Merge Sort","slug":"merge-sort"},{"name":"Bucket Sort","slug":"bucket-sort"},{"name":"Radix Sort","slug":"radix-sort"},{"name":"Counting Sort","slug":"counting-sort"}],"content":"<p>Given an array of integers <code>nums</code>, sort the array in ascending order and return it.</p>\n\n<p>You must solve the problem <strong>without using any built-in</strong> functions in <code>O(nlog(n))</code> time complexity and with the smallest space complexity possible.</p>\n\n<p>&nbsp;</p>\n<p><strong class=\"example\">Example 1:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [5,2,3,1]\n<strong>Output:</strong> [1,2,3,5]\n<strong>Explanation:</strong> After sorting the array, the positions of some numbers are not changed (for example, 2 and 3), while the positions of other numbers are changed (for example, 1 and 5).\n</pre>\n\n<p><strong class=\"example\">Example 2:</strong></p>\n\n<pre>\n<strong>Input:</strong> nums = [5,1,1,2,0,0]\n<strong>Output:</strong> [0,0,1,1,2,5]\n<strong>Explanation:</strong> Note that the values of nums are not necessarily unique.\n</pre>\n\n<p>&nbsp;</p>\n<p><strong>Constraints:</strong></p>\n\n<ul>\n\t<li><code>1 &lt;= nums.length &lt;= 5 * 10<sup>4</sup></code></li>\n\t<li><code>-5 * 10<sup>4</sup> &lt;= nums[i] &lt;= 5 * 10<sup>4</sup></code></li>\n</ul>\n"}},"status":"success"},"queryKey":["questionDetail",{"titleSlug":"sort-an-array"}],"queryHash":"[\"questionDetail\",{\"titleSlug\":\"sort-an-array\"}]"}]}}}}</script>
 </body>
 </html>
