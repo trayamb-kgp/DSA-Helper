@@ -17,7 +17,7 @@ The only things that ever leave your browser are the pages **you** ask it to ope
 
 ## What the extension reads
 
-Only on a problem page of a [supported site](../README.md#supported-sites), and only **at the moment you trigger an action** — never in the background, never on a schedule, never on pages it doesn't support:
+Only on a problem page of a supported site (LeetCode, Codeforces, CodeChef, GeeksforGeeks), and only **at the moment you trigger an action** — never in the background, never on a schedule, never on pages it doesn't support:
 
 - The problem's title, identifier, difficulty and tags
 - The problem statement, examples and constraints
@@ -90,7 +90,7 @@ The extension is a study tool for programming practice sites and is not directed
 
 ## Changes to this policy
 
-If the extension ever changes in a way that affects this policy — in particular, if it ever gains a network connection of any kind — this document will be updated before that version ships, and the change will be described in the release notes. The current version always lives in the extension's repository.
+If the extension ever changes in a way that affects this policy — in particular, if it ever gains a network connection of any kind — this document will be updated before that version ships, and the change will be described in the release notes.
 
 ## Contact
 

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — DSA Helper</title>
+    <meta name="description" content="Privacy policy for the DSA Helper Chrome extension. It collects nothing, sends nothing, and has no servers." />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff; --fg: #18181b; --muted: #52525b; --accent: #4f46e5;
+        --border: #e4e4e7; --surface: #fafafa; --card: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0f12; --fg: #fafafa; --muted: #a1a1aa; --accent: #a5b4fc;
+          --border: #2a2a30; --surface: #17171b; --card: #17171b;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font: 16px/1.7 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; }
+      header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 8px; }
+      h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.02em; }
+      .sub { color: var(--muted); font-size: 14px; margin: 0; }
+      h2 { font-size: 20px; margin: 40px 0 12px; letter-spacing: -0.01em; }
+      p { margin: 0 0 14px; }
+      a { color: var(--accent); }
+      .lede {
+        margin: 28px 0; padding: 18px 20px; border-left: 3px solid var(--accent);
+        background: var(--surface); border-radius: 0 10px 10px 0; font-size: 17px;
+      }
+      .lede strong { color: var(--fg); }
+      ul { margin: 0 0 14px; padding-left: 22px; }
+      li { margin: 6px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 8px 0 20px; font-size: 14.5px; }
+      th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+      th { color: var(--muted); font-weight: 600; }
+      code { background: var(--surface); padding: 1px 6px; border-radius: 5px; font-size: 0.9em; }
+      .muted { color: var(--muted); }
+      footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; font-style: italic; }
+      strong { font-weight: 650; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Privacy Policy — DSA Helper</h1>
+        <p class="sub">Effective date: 3 September 2026 · Applies to the DSA Helper Chrome extension, all versions.</p>
+      </header>
+
+      <div class="lede">
+        <strong>DSA Helper collects nothing, sends nothing, and has no servers.</strong>
+        It has no backend, no accounts, no analytics, no telemetry, no error reporting, and no
+        network requests of its own. Everything it does happens inside your browser, on your
+        machine. There is no infrastructure anywhere that could receive your data, because none
+        exists. The only things that ever leave your browser are the pages <em>you</em> ask it to
+        open — a YouTube search, or ChatGPT — and those are ordinary tab navigations you could
+        perform yourself.
+      </div>
+
+      <h2>What the extension reads</h2>
+      <p>Only on a problem page of a supported site (LeetCode, Codeforces, CodeChef,
+        GeeksforGeeks), and only <strong>at the moment you trigger an action</strong> — never in
+        the background, never on a schedule, never on pages it doesn't support:</p>
+      <ul>
+        <li>The problem's title, identifier, difficulty and tags</li>
+        <li>The problem statement, examples and constraints</li>
+        <li>The page's address</li>
+        <li><strong>The code currently in the editor</strong>, and which language it's in</li>
+      </ul>
+      <p>None of this is transmitted anywhere by the extension. It is assembled into a search
+        query or a prompt, and then used for that one action.</p>
+
+      <h2>What is stored, and where</h2>
+      <p>All storage is your browser's own extension storage, on your device. Three kinds:</p>
+      <table>
+        <thead><tr><th>What</th><th>Where</th><th>How long</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Your settings and templates</strong> — the YouTube query template, the ChatGPT prompt template, your preferences</td>
+            <td>Chrome's synced extension storage, so they follow you across Chrome installs where you're signed in</td>
+            <td>Until you change them or remove the extension</td>
+          </tr>
+          <tr>
+            <td><strong>Recently visited problems</strong> — platform, title, identifier, link, and when. Never the statement. Never your code.</td>
+            <td>Your device only. Not synced</td>
+            <td>Until you clear it, or it falls off the end of your chosen limit</td>
+          </tr>
+          <tr>
+            <td><strong>The most recent problem you used it on</strong> — its title, statement, examples, constraints and link, to power the options-page preview and diagnostics. Never your code — the code is stripped before this is saved.</td>
+            <td>Your device only. Not synced</td>
+            <td>Overwritten each time you use an action; erased when you clear history</td>
+          </tr>
+          <tr>
+            <td><strong>A prepared prompt awaiting hand-off</strong> — held for a few seconds while the ChatGPT tab opens</td>
+            <td>Memory only, never written to disk</td>
+            <td>Deleted the moment it is used, or within 5 minutes, or when you close the browser</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>Your code is deliberately the most protected of these.</strong> It is never
+        written to disk, never synced, never added to history, and never kept after the action
+        that used it.</p>
+
+      <h2>What the extension never does</h2>
+      <ul>
+        <li>No data is sent to the developer. There is nowhere for it to go.</li>
+        <li>No analytics, usage tracking, crash reporting, or fingerprinting.</li>
+        <li>No advertising, no profiling, no data sold or shared with anyone.</li>
+        <li>No reading of pages outside the supported problem sites and ChatGPT.</li>
+        <li>No browsing history, bookmarks, cookies, passwords or form data is accessed.</li>
+        <li>No account, sign-up, or identifier of any kind.</li>
+        <li>No remote code is downloaded or executed — the extension is exactly what you installed.</li>
+      </ul>
+
+      <h2>When you use an action, you are visiting another company's site</h2>
+      <p>This matters, so it is stated plainly.</p>
+      <ul>
+        <li><strong>Search YouTube</strong> opens a YouTube results page with your query. Google receives that query as it would any search you typed.</li>
+        <li><strong>Ask ChatGPT</strong> opens ChatGPT with a prompt placed in the message box — containing the problem details and, unless you've turned that off, <strong>your code</strong>. <strong>By default the extension never sends it</strong> — it is typed in and left there for you to read, and nothing reaches OpenAI unless you press Enter. If you switch on <em>Send the prompt automatically</em> in settings, it is sent for you once it is confirmed typed in; leave that off to keep the review step.</li>
+        <li><strong>Copy prompt</strong> places the same text on your clipboard and opens nothing.</li>
+      </ul>
+      <p>Once you send a message on those sites, what happens to it is governed by <strong>their</strong>
+        privacy policies, not this one:
+        <a href="https://policies.google.com/privacy" rel="noreferrer">Google Privacy Policy</a> (YouTube) ·
+        <a href="https://openai.com/policies/privacy-policy" rel="noreferrer">OpenAI Privacy Policy</a> (ChatGPT).</p>
+      <p>If you'd rather your code never went into a prompt at all, turn off <strong>Include my code</strong> in the extension's settings.</p>
+
+      <h2>Permissions, and why each is needed</h2>
+      <table>
+        <thead><tr><th>Permission</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Access to the four problem sites</td><td>To read the problem you're on and the code you've written. This is the extension's entire purpose</td></tr>
+          <tr><td>Access to <code>chatgpt.com</code></td><td>To place the prepared prompt into the message box</td></tr>
+          <tr><td>Storage</td><td>To keep your templates, settings and history on your device</td></tr>
+          <tr><td>Tabs</td><td>To open the YouTube or ChatGPT tab, and to deliver the prompt to the right one</td></tr>
+          <tr><td>Context menus</td><td>To provide the right-click menu</td></tr>
+          <tr><td>Scripting / active tab</td><td>To read the current page when you ask for an action</td></tr>
+        </tbody>
+      </table>
+      <p>No permission is used for any purpose beyond the one listed.</p>
+
+      <h2>Your control over your data</h2>
+      <ul>
+        <li><strong>See everything it holds</strong> — settings and history are visible and editable in the extension's options page.</li>
+        <li><strong>Clear your history</strong> at any time, or <strong>pause</strong> recording, or switch it off entirely by setting the limit to zero.</li>
+        <li><strong>Keep a copy of your templates</strong> with the copy button in options — worth doing if you've spent time on your prompt.</li>
+        <li><strong>Delete everything</strong> by removing the extension. Chrome erases all of its stored data, including synced settings. This is not reversible, so copy any template you want to keep first.</li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>The extension is a study tool for programming practice sites and is not directed at
+        children under 13. It collects no personal information from anyone, of any age.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>If the extension ever changes in a way that affects this policy — in particular, if it
+        ever gains a network connection of any kind — this document will be updated before that
+        version ships, and the change will be described in the release notes. The current version
+        always lives in the extension's repository.</p>
+
+      <h2>Contact</h2>
+      <p>Questions about privacy, or about this policy:
+        <a href="mailto:support.dsahelper@gmail.com">support.dsahelper@gmail.com</a></p>
+
+      <footer>
+        Both this policy and its claims are structural, not promises. The extension makes no
+        network requests, so there is no code path by which your data could reach anyone —
+        including the developer.
+      </footer>
+    </div>
+  </body>
+</html>

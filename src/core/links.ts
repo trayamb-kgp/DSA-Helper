@@ -24,7 +24,7 @@
 export const REPO_SLUG: string | null = null;
 
 /** The address published in the privacy policy and the store listing. */
-export const CONTACT_EMAIL: string | null = null;
+export const CONTACT_EMAIL: string | null = 'support.dsahelper@gmail.com';
 
 /** The branch the published docs are read from. */
 const DEFAULT_BRANCH = 'main';

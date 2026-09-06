@@ -12,3 +12,7 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+.playwright-mcp/
+
+# Packaged upload zips (regenerated from dist/)
+dsa-helper-*.zip
