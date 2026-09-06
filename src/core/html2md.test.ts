@@ -209,6 +209,41 @@ describe('block structure', () => {
     );
   });
 
+  it('keeps the boundary space when the separator lives inside an emphasis span', () => {
+    // The live LeetCode shape that produced "subsequences****of*s*which equals*t":
+    // the word separators are the spaces *inside* <i> of </i> and
+    // <i> which equals </i>. Trimming them glued the spans together.
+    const out = md(
+      '<p>return <i>the number of distinct</i> <b><i>subsequences</i></b>' +
+        '<i> of </i>s<i> which equals </i>t.</p>',
+    );
+    expect(out).toBe(
+      'return *the number of distinct* ***subsequences*** *of* s *which equals* t.',
+    );
+    expect(out).not.toContain('****');
+    expect(out).not.toContain('subsequences****of');
+  });
+
+  it('moves a trailing space in bold outside the markers', () => {
+    // `**Note **` would not render; the space belongs after the emphasis.
+    expect(md('<p><strong>Note </strong>the bound.</p>')).toBe('**Note** the bound.');
+  });
+
+  it('keeps loose text in a pre that also wraps fragments in their own code', () => {
+    // LeetCode's example <pre>: Input/Output/Explanation as loose text, with the
+    // highlighted subsequences each in a <code>. Lifting the first <code> alone
+    // dropped the whole example down to one fragment.
+    const out = md(
+      '<pre>\n<strong>Input:</strong> s = "ab", t = "b"\n' +
+        '<strong>Output:</strong> 2\n<code>ab</code>\n<code>ba</code></pre>',
+    );
+    expect(out).toContain('Input: s = "ab", t = "b"');
+    expect(out).toContain('Output: 2');
+    // Both fragments survive, not just the first.
+    expect(out).toContain('\nab\n');
+    expect(out).toContain('\nba\n');
+  });
+
   it('converts unordered lists', () => {
     expect(md('<ul><li>alpha</li><li>beta</li></ul>')).toBe('- alpha\n- beta');
   });

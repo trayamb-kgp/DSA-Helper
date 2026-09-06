@@ -172,7 +172,13 @@ function detectLang(el: Element): string {
 
 function renderPre(el: Element, ctx: Ctx): string {
   const codeEl = el.querySelector('code');
-  const text = ((codeEl ?? el).textContent ?? '').replace(/\n+$/, '');
+  // The whole <pre>, not just its first <code>. LeetCode writes an example's
+  // Input/Output/Explanation as loose text in the <pre> and wraps only the
+  // highlighted fragments in their own <code> elements; lifting the first
+  // <code> alone dropped everything else -- the entire example, in practice.
+  // A plain `<pre><code>…</code></pre>` is unchanged, the code being the pre's
+  // only content. The leading newline after `<pre>` is a formatting artifact.
+  const text = (el.textContent ?? '').replace(/^\n+/, '').replace(/\n+$/, '');
   if (!text.trim()) return '';
   const lang = detectLang(codeEl ?? el);
   // A fence must be longer than any backtick run it contains, or the block
@@ -206,6 +212,24 @@ function inlineText(el: Element): string {
     out += inlineText(child);
   }
   return out;
+}
+
+/**
+ * Wrap inline emphasis, keeping a boundary space *outside* the markers.
+ *
+ * The separator between two words is often the space *inside* an emphasis span
+ * -- LeetCode writes `<i> of </i>` and `<i> which equals </i>`. Trimming it away
+ * glued the span to its neighbour ("subsequences****of"). Markdown will not
+ * render a marker with a space just inside it (`* of *`) either, so the space
+ * has to move outside the markers: ` *of* `. Normalization squeezes any surplus.
+ */
+function emphasize(el: Element, ctx: Ctx, marker: string): string {
+  const raw = convertChildren(el, ctx);
+  const inner = raw.trim();
+  if (!inner) return '';
+  const lead = /^\s/.test(raw) ? ' ' : '';
+  const trail = /\s$/.test(raw) ? ' ' : '';
+  return `${lead}${marker}${inner}${marker}${trail}`;
 }
 
 function renderInlineCode(el: Element, ctx: Ctx): string {
@@ -353,21 +377,15 @@ function convertNode(node: Node, ctx: Ctx): string {
     case 'SAMP':
       return renderInlineCode(el, ctx);
     case 'STRONG':
-    case 'B': {
-      const inner = convertChildren(el, ctx).trim();
-      return inner ? `**${inner}**` : '';
-    }
+    case 'B':
+      return emphasize(el, ctx, '**');
     case 'EM':
-    case 'I': {
-      const inner = convertChildren(el, ctx).trim();
-      return inner ? `*${inner}*` : '';
-    }
+    case 'I':
+      return emphasize(el, ctx, '*');
     case 'DEL':
     case 'S':
-    case 'STRIKE': {
-      const inner = convertChildren(el, ctx).trim();
-      return inner ? `~~${inner}~~` : '';
-    }
+    case 'STRIKE':
+      return emphasize(el, ctx, '~~');
     // Exponents and indices: the markup is the only record of them, so
     // dropping it turns `5 * 10<sup>4</sup>` into `5 * 104` -- not a rounder
     // number but a wrong one, in the constraints, which is the part of a
