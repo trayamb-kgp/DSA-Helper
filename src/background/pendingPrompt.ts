@@ -19,17 +19,25 @@ export const PROMPT_TTL_MS = 5 * 60 * 1000;
 
 const KEY_PREFIX = 'pendingPrompt:';
 
-interface PendingEntry {
-  prompt: string;
-  createdAt: number;
-  /** Whether the content script should auto-submit this prompt ([D050]). */
+/**
+ * The per-prompt decisions the worker makes from settings and hands to the
+ * content script, so the content script never reads settings itself.
+ */
+export interface PromptFlags {
+  /** Auto-submit this prompt once verifiably inserted ([D050]). */
   autoSubmit: boolean;
+  /** Show the review banner after inserting ([D051]). */
+  showBanner: boolean;
 }
 
-/** What a claim hands back: the prompt and whether to auto-submit it. */
-export interface ClaimedPrompt {
+interface PendingEntry extends PromptFlags {
   prompt: string;
-  autoSubmit: boolean;
+  createdAt: number;
+}
+
+/** What a claim hands back: the prompt plus its per-prompt flags. */
+export interface ClaimedPrompt extends PromptFlags {
+  prompt: string;
 }
 
 function keyFor(tabId: number): string {
@@ -60,10 +68,10 @@ function isEntry(value: unknown): value is PendingEntry {
 export async function putPendingPrompt(
   tabId: number,
   prompt: string,
-  autoSubmit: boolean,
+  flags: PromptFlags,
   now = Date.now(),
 ): Promise<void> {
-  const entry: PendingEntry = { prompt, createdAt: now, autoSubmit };
+  const entry: PendingEntry = { prompt, createdAt: now, ...flags };
   await sessionArea().set({ [keyFor(tabId)]: entry });
 }
 
@@ -87,7 +95,13 @@ export async function claimPendingPrompt(
 
   if (!isEntry(entry)) return null;
   if (now - entry.createdAt > PROMPT_TTL_MS) return null;
-  return { prompt: entry.prompt, autoSubmit: entry.autoSubmit === true };
+  // `showBanner` defaults to true when absent (an entry from before the field
+  // existed): the review cue is the safe default ([D051]).
+  return {
+    prompt: entry.prompt,
+    autoSubmit: entry.autoSubmit === true,
+    showBanner: entry.showBanner !== false,
+  };
 }
 
 /** Called when a tab closes, so a prompt nobody claimed does not linger. */

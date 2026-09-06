@@ -40,6 +40,7 @@
 | [D008](#d008) | Clipboard action and history included in v1 | Accepted | 2026-09-01 |
 | [D009](#d009) | Name "DSA Helper"; icons generated, not sourced | Accepted | 2026-09-01 |
 | [D050](#d050) | Auto-submit to ChatGPT as an opt-in, off by default | Accepted | 2026-09-06 |
+| [D051](#d051) | The ChatGPT review banner is a setting, on by default | Accepted | 2026-09-06 |
 | **Architecture** ||||
 | [D010](#d010) | No backend, no network calls of our own | Accepted | 2026-09-01 |
 | [D011](#d011) | React + TypeScript + Vite | Accepted | 2026-09-01 |
@@ -826,6 +827,23 @@ Because several platforms restrict automated access and content reproduction, th
 **Consequences.** `Settings` gains `autoSubmitChatGpt`; the `PENDING_PROMPT` message and the session entry carry an `autoSubmit` flag decided by the worker at action time; `inject.ts` gains a gated `submitComposer`. The options toggle is shown only when auto-inject is on. User-facing copy that promised the extension "never sends" is softened to "off by default" (store listing, `PRIVACY.md`, `TESTING.md`). The send-button selector is now a second ChatGPT-specific string that a redesign can break — when it does, auto-submit degrades to the review banner rather than failing.
 
 **Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 1, [D003](#d003), [D040](#d040), [architecture.md](architecture.md) §9.2
+
+<a id="d051"></a>
+### D051 — The ChatGPT review banner is a setting, on by default
+
+**Decision.** Add a setting, `showChatGptBanner`, **on by default**, that controls the "Prompt inserted — review it, then press Enter" banner on the ChatGPT page. Off, the composer fills silently. The default preserves the banner for everyone; the user can opt out.
+
+**Context.** The user asked to remove the banner that appears after Alt+Shift+G / the toolbar redirect. The banner is not merely decorative: it is the visible half of the never-submit review step ([D003](#d003)) — the cue telling the user the prompt is theirs to read and send. Removing it outright would quietly weaken that step for every user.
+
+**Reasoning.** Offered three options (remove entirely / a setting / downgrade to the shared toast); the user chose **a setting, default on**. That keeps the review cue as the default — so nothing about the security posture changes for anyone who does not act — while giving the user who finds it noisy a way to silence it for themselves. It is a pure UX control: it changes what is *shown*, never whether the prompt is sent. The flag rides the same `PENDING_PROMPT`/session-entry channel established for auto-submit ([D050](#d050)), so the content script still reads no settings.
+
+**Interaction with auto-submit.** When an opted-in auto-submit succeeds there is nothing left to review, so no banner shows regardless of this setting. When auto-submit is off, or the send button never became ready, the prompt is left inserted and the banner shows if enabled — the correct "press Enter" cue for a prompt that is waiting.
+
+**Alternatives.** Remove the banner entirely (rejected by the user: it takes the review cue with it); downgrade to the 4-second toast (not chosen: a setting is more flexible and keeps the deliberate 12-second dwell for those who want it); a content-script read of settings (rejected: same reason as [D050](#d050) — the decision travels with the prompt).
+
+**Consequences.** `Settings` gains `showChatGptBanner`; `PENDING_PROMPT` and the session entry carry a `showBanner` flag (the flags now form a small `PromptFlags` object rather than a lone boolean); the options page gains a toggle shown only when auto-inject is on. The banner text itself is unchanged.
+
+**Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 2, [D003](#d003), [D050](#d050)
 
 ---
 

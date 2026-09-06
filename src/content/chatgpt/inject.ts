@@ -71,16 +71,20 @@ const TOTAL_FAILURE =
  * (D017). Returning null is the normal case -- most visits to ChatGPT are
  * ordinary ones, and this script must do nothing at all on those.
  */
-async function claimPrompt(): Promise<{ prompt: string; autoSubmit: boolean } | null> {
+async function claimPrompt(): Promise<{
+  prompt: string;
+  autoSubmit: boolean;
+  showBanner: boolean;
+} | null> {
   const request: Msg = { type: 'CLAIM_PENDING_PROMPT' };
   const reply: unknown = await chrome.runtime.sendMessage(request).catch(() => null);
 
   if (typeof reply !== 'object' || reply === null) return null;
   if ((reply as Msg).type !== 'PENDING_PROMPT') return null;
 
-  const { prompt, autoSubmit } = reply as Extract<Msg, { type: 'PENDING_PROMPT' }>;
+  const { prompt, autoSubmit, showBanner } = reply as Extract<Msg, { type: 'PENDING_PROMPT' }>;
   if (typeof prompt !== 'string' || prompt === '') return null;
-  return { prompt, autoSubmit: autoSubmit === true };
+  return { prompt, autoSubmit: autoSubmit === true, showBanner: showBanner !== false };
 }
 
 // --- finding the composer ---------------------------------------------------
@@ -368,7 +372,7 @@ export async function run(): Promise<void> {
   // No prompt for this tab is the ordinary case: someone opened ChatGPT
   // themselves. Do nothing, silently.
   if (!claim) return;
-  const { prompt, autoSubmit } = claim;
+  const { prompt, autoSubmit, showBanner: bannerEnabled } = claim;
 
   const composer = await waitForComposer();
   if (!composer) {
@@ -392,7 +396,11 @@ export async function run(): Promise<void> {
     return;
   }
 
-  showBanner();
+  // The banner is the visible half of the review step. It is on by default but
+  // the user can turn it off ([D051]); when off, the composer just fills
+  // silently. It still shows when an opted-in auto-submit could not send, since
+  // the prompt is then inserted and waiting for a manual Enter.
+  if (bannerEnabled) showBanner();
 }
 
 // Guarded so the module can be imported by its tests without firing. In the

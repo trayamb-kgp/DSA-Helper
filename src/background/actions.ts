@@ -303,9 +303,12 @@ async function runChatGpt(tab: chrome.tabs.Tab, tabId: number): Promise<void> {
     return;
   }
 
-  // The auto-submit decision is made here, from settings, and travels with the
-  // prompt so the content script never reads settings itself ([D050]).
-  await putPendingPrompt(created.id, built.prompt, built.settings.autoSubmitChatGpt);
+  // The per-prompt decisions are made here, from settings, and travel with the
+  // prompt so the content script never reads settings itself ([D050], [D051]).
+  await putPendingPrompt(created.id, built.prompt, {
+    autoSubmit: built.settings.autoSubmitChatGpt,
+    showBanner: built.settings.showChatGptBanner,
+  });
 
   // Anything the prompt is missing is said on the problem tab, where the user
   // still is when `focusNewTab` is off, and before ChatGPT has even loaded.

@@ -101,6 +101,11 @@ describe('mergeSettings', () => {
     expect(merged.autoSubmitChatGpt).toBe(false);
   });
 
+  it('defaults the review banner to on for settings saved before the field existed (D051)', () => {
+    const merged = mergeSettings({ autoInjectChatGpt: true });
+    expect(merged.showChatGptBanner).toBe(true);
+  });
+
   it('discards a value of the wrong type', () => {
     const merged = mergeSettings({ historyLimit: 'lots' as unknown as number });
     expect(merged.historyLimit).toBe(DEFAULT_SETTINGS.historyLimit);

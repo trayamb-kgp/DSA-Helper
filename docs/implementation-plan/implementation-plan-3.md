@@ -6,7 +6,7 @@
 3. **changing the licence from MIT to PolyForm Strict (source-available, no forking)**;
 4. a **legal posture pass** — a non-affiliation disclaimer and honest, accurate behaviour wording ("nothing leaves your device"), so the extension is defensible against scraping/ToS concerns.
 
-**Status:** **Phases 1, 3 & 4 landed 2026-09-06.** Phase 3 (licence → PolyForm Strict) and Phase 4 (disclaimer + ToS review + a [D018](../decisions.md#d018) code-on-disk fix found during the legal cross-check) first; then Phase 1 (opt-in auto-submit to ChatGPT, off by default, [D050](../decisions.md#d050)). **Phase 2 (banner setting) not started.** `npm run verify` green; Phase 1 has a manual ChatGPT smoke check still owed (see its Track).
+**Status:** **All four phases landed 2026-09-06.** Phase 3 (licence → PolyForm Strict) and Phase 4 (disclaimer + ToS review + a [D018](../decisions.md#d018) code-on-disk fix found during the legal cross-check) first; then Phase 1 (opt-in auto-submit to ChatGPT, off by default, [D050](../decisions.md#d050)); then Phase 2 (review banner as a setting, on by default, [D051](../decisions.md#d051)). `npm run verify` green, 535 unit tests pass. The only thing owed is the manual ChatGPT smoke check (auto-submit + banner on a real, logged-in page) — see the Phase 1/2 Tracks and [TESTING.md](../TESTING.md) §ChatGPT.
 **Last updated:** 2026-09-06
 
 **Q&A resolved with the user (2026-09-06):**
@@ -114,17 +114,17 @@ Same conventions as [implementation-plan-1.md](implementation-plan-1.md): each p
 
 ### Tasks
 
-- [ ] `src/core/types.ts` — add `showChatGptBanner: boolean` to `Settings` (default true).
-- [ ] `src/core/storage.ts` — `showChatGptBanner: true` in `DEFAULT_SETTINGS`; confirm in `storage.test.ts` that stored settings without the key merge to `true` (no migration needed, as in Phase 1).
-- [ ] Deliver the flag to the content script the same way as `autoSubmit` — on the `PENDING_PROMPT` reply, computed by the worker — so `inject.ts` stays out of the settings store.
-- [ ] `src/content/chatgpt/inject.ts` — gate the `showBanner()` call on the flag.
-- [ ] If Phase 1 exists: when `autoSubmit` is true, do not show a "press Enter" cue at all (a brief "Sent by DSA Helper" info toast is optional).
-- [ ] Update `src/content/chatgpt/inject.test.ts` if the banner text/behaviour it references changes.
-- [ ] Update user-facing docs that describe the banner: [docs/CHANGELOG.md](../CHANGELOG.md), [docs/STORE-LISTING.md](../STORE-LISTING.md) (the "types the prompt in and stops" copy), [docs/TESTING.md](../TESTING.md) (§ referencing the banner).
+- [x] `src/core/types.ts` — added `showChatGptBanner: boolean` to `Settings` (default true); `PENDING_PROMPT` now carries `showBanner`.
+- [x] `src/core/storage.ts` — `showChatGptBanner: true` in `DEFAULT_SETTINGS`; a `storage.test.ts` case confirms a bag without the key merges to `true` (no migration needed).
+- [x] Flag delivered the same way as `autoSubmit`: the two now form a small `PromptFlags` object stored in the session entry and returned on the claim, so `inject.ts` still reads no settings.
+- [x] `src/content/chatgpt/inject.ts` — the `showBanner()` call is gated on the flag (`if (bannerEnabled) showBanner()`).
+- [x] Auto-submit interaction: a succeeding auto-submit returns before the banner check, so no banner shows regardless; a not-ready send button falls through to the (gated) banner, which is the right "press Enter" cue for a waiting prompt.
+- [x] `pendingPrompt.test.ts` / `actions.test.ts` updated for the `PromptFlags` object and the `showBanner` flag; `storage.test.ts` gains the banner default case. `inject.test.ts` needed no change (its guard tests don't touch the banner). Full suite 535 green.
+- [x] User-facing docs updated: [docs/CHANGELOG.md](../CHANGELOG.md) (new entry), [docs/TESTING.md](../TESTING.md) (banner-toggle manual check). No store-listing/PRIVACY banner copy needed changing — neither claimed the banner always shows.
 
-### Decisions (prospective)
+### Decisions
 
-- **[D051] — the review banner is user-controllable (or removed).** Record which option was chosen and why. If the banner goes away while the pause stays (Phase 1 not shipped), note explicitly that the review *step* is unchanged — only its visible reminder is — so a later reader doesn't read this as weakening D003.
+- **[D051] — the review banner is a setting, on by default.** Recorded in [decisions.md](../decisions.md): a pure UX control that changes what is shown, never whether the prompt is sent; the default keeps D003's visible review cue for everyone.
 
 ### Q&A
 
@@ -132,11 +132,11 @@ Same conventions as [implementation-plan-1.md](implementation-plan-1.md): each p
 
 ### Track
 
-**Not started.** Ready to build once Phase 1 lands (shared `PENDING_PROMPT` flag delivery).
+**Phase complete.** Setting, plumbing (`PromptFlags`), gated banner, options toggle, tests, and docs all landed; `npm run verify` green, 535 tests pass. Manual smoke (banner shows/hides per the toggle on a real ChatGPT page) folded into the Phase 1 ChatGPT smoke list in [TESTING.md](../TESTING.md).
 
 ### Additional Notes
 
-- The banner and the clipboard-fallback toasts are different things: the toasts ("the prompt is on your clipboard, press Ctrl+V") carry information the user needs when insertion failed, and must **not** be removed by this phase.
+- The banner and the clipboard-fallback toasts are different things: the toasts ("the prompt is on your clipboard, press Ctrl+V") carry information the user needs when insertion failed, and are **not** gated by this setting.
 
 ---
 
@@ -224,5 +224,5 @@ The user's proposed wording — *"the extension is not storing the information"*
 
 - **Phase 3 adds no production code.** **Phase 4 was expected to add none**, but the legal cross-check surfaced a [D018](../decisions.md#d018) violation (code persisted to disk in `lastExtraction`), so it also carries a small, well-tested fix to `actions.ts` and `diagnostics.ts` — a case of a doc pass finding a real defect.
 - **Phase 1 reversed [D003](../decisions.md#d003)** with the user's explicit yes (2026-09-06) — the only part of this plan that changes a security property. Landed as an off-by-default opt-in ([D050](../decisions.md#d050)); the never-submit default is unchanged.
-- **Decision ids** reserved by this plan: **D050** (auto-submit), **D051** (banner), **D048** (licence), **D049** (disclaimer). They are prospective until each phase is implemented, matching the convention [implementation-plan-2.md](implementation-plan-2.md) used for its own prospective decisions.
+- **Decision ids** from this plan, all now recorded: **D048** (licence), **D049** (disclaimer), **D050** (auto-submit), **D051** (banner) — numbered in landing order (Phases 3–4 first).
 - Nothing here touches an adapter, the extraction path, or the no-network invariant.

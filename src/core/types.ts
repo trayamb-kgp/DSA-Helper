@@ -76,6 +76,14 @@ export interface Settings {
    * clipboard-fallback path. Meaningless unless `autoInjectChatGpt` is true.
    */
   autoSubmitChatGpt: boolean;
+  /**
+   * Show the "Prompt inserted — review it, then press Enter" banner on the
+   * ChatGPT page after the prompt is inserted. **On by default** ([D051]): it
+   * is the visible half of the never-submit review step ([D003]). Turned off,
+   * the composer just fills silently. Has no effect when the prompt was
+   * auto-submitted ([D050]) — there is nothing left to review.
+   */
+  showChatGptBanner: boolean;
   /** 0 disables history entirely. */
   historyLimit: number;
   /** Popup toggle; persists across restarts. */
@@ -114,10 +122,10 @@ export type Msg =
    */
   | { type: 'PROMPT_RESULT'; prompt: string | null }
   /**
-   * `autoSubmit` travels with the prompt (decided by the worker from settings
-   * when the action fired), so the ChatGPT content script never reads settings
-   * itself. It is false on every path but a claim that both found a prompt and
-   * had the opt-in on ([D050]).
+   * `autoSubmit` and `showBanner` travel with the prompt (decided by the worker
+   * from settings when the action fired), so the ChatGPT content script never
+   * reads settings itself. On a denied or empty claim both fall back to their
+   * safe defaults: `autoSubmit` false ([D050]), `showBanner` true ([D051]).
    */
-  | { type: 'PENDING_PROMPT'; prompt: string | null; autoSubmit: boolean }
+  | { type: 'PENDING_PROMPT'; prompt: string | null; autoSubmit: boolean; showBanner: boolean }
   | { type: 'TOAST'; level: ToastLevel; text: string };

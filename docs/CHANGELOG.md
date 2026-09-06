@@ -10,6 +10,8 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 ### Added
 
+- **Turn off the ChatGPT review reminder** (2026-09-06) — the "Prompt inserted — review it, then press Enter" banner is now a setting, **on by default**. Leave it on to keep the reminder; turn it off and the message box just fills silently ([D051](decisions.md#d051)).
+
 - **Send to ChatGPT automatically, if you want to** (2026-09-06) — a new setting, **off by default**, that sends the prompt for you once it has been confirmed typed into ChatGPT, instead of waiting for you to press Enter. The default is unchanged: the prompt is typed in and left for you to read first, because it is built from a page the extension doesn't control and reading it is a safeguard. When the opt-in is on, the prompt is still only sent after it is verified in the composer — never a half-typed prompt, and never the clipboard fallback ([D050](decisions.md#d050)).
 
 - **Ready to publish** (2026-09-03) — source-available under PolyForm Strict 1.0.0 (changed from MIT on 2026-09-06, [D048](decisions.md#d048)), with a privacy policy that now carries an effective date, and a full Chrome Web Store listing written out: description, single-purpose statement, a justification for every permission, the data-usage answers, a screenshot plan and a submission checklist. One command, `npm run verify`, runs the typecheck, the tests, the build and a set of checks against the built extension itself.

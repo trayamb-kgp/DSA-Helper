@@ -443,10 +443,15 @@ describe('runAction — the ChatGPT action (spec §7.2)', () => {
     // Keyed by the created tab's id, not globally (architecture §5.3).
     const keys = Object.keys(fake.session);
     expect(keys).toEqual(['pendingPrompt:99']);
-    const entry = fake.session['pendingPrompt:99'] as { prompt: string; autoSubmit: boolean };
+    const entry = fake.session['pendingPrompt:99'] as {
+      prompt: string;
+      autoSubmit: boolean;
+      showBanner: boolean;
+    };
     expect(entry.prompt).toContain('int main() {}');
-    // Auto-submit is off by default, so the parked entry says so (D050).
+    // Defaults: auto-submit off (D050), review banner on (D051).
     expect(entry.autoSubmit).toBe(false);
+    expect(entry.showBanner).toBe(true);
   });
 
   it('parks the auto-submit opt-in with the prompt when it is on (D050)', async () => {
@@ -459,6 +464,16 @@ describe('runAction — the ChatGPT action (spec §7.2)', () => {
     // The worker decides from settings and stores the decision; the content
     // script never reads settings itself.
     expect(entry.autoSubmit).toBe(true);
+  });
+
+  it('parks the banner preference with the prompt when it is off (D051)', async () => {
+    fake = installChrome({ showChatGptBanner: false });
+    withContext();
+    const { runAction } = await load();
+    await runAction('chatgpt', tab());
+
+    const entry = fake.session['pendingPrompt:99'] as { showBanner: boolean };
+    expect(entry.showBanner).toBe(false);
   });
 
   it('opens a new tab even when openInNewTab is off', async () => {

@@ -110,7 +110,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const fromChatGpt = (sender.origin ?? sender.url ?? '').startsWith(CHATGPT_URL.slice(0, -1));
 
   if (tabId == null || !fromChatGpt) {
-    const denied: Msg = { type: 'PENDING_PROMPT', prompt: null, autoSubmit: false };
+    const denied: Msg = {
+      type: 'PENDING_PROMPT',
+      prompt: null,
+      autoSubmit: false,
+      showBanner: true,
+    };
     sendResponse(denied);
     return false;
   }
@@ -124,11 +129,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         type: 'PENDING_PROMPT',
         prompt: claim?.prompt ?? null,
         autoSubmit: claim?.autoSubmit ?? false,
+        showBanner: claim?.showBanner ?? true,
       };
       sendResponse(reply);
     })
     .catch(() => {
-      const reply: Msg = { type: 'PENDING_PROMPT', prompt: null, autoSubmit: false };
+      const reply: Msg = { type: 'PENDING_PROMPT', prompt: null, autoSubmit: false, showBanner: true };
       sendResponse(reply);
     });
 

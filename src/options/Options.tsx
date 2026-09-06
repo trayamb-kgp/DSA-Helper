@@ -309,6 +309,14 @@ export function Options() {
             onChange={(autoSubmitChatGpt) => update({ autoSubmitChatGpt })}
           />
         )}
+        {settings.autoInjectChatGpt && (
+          <Toggle
+            label="Show the review reminder on ChatGPT"
+            hint="On by default. Shows a small “review it, then press Enter” banner after the prompt is typed into ChatGPT. Turn it off and the message box just fills silently. Has no effect when the prompt is sent automatically."
+            checked={settings.showChatGptBanner}
+            onChange={(showChatGptBanner) => update({ showChatGptBanner })}
+          />
+        )}
         <div className="field">
           <label htmlFor="cap">Maximum prompt size</label>
           <p className="muted">
