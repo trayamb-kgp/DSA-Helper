@@ -139,6 +139,71 @@ After the workflow succeeds, the build is sitting in the store draft.
 
 ---
 
+## The website (privacy policy + landing page)
+
+The `website/` directory (landing page + `privacy.html`) is a **separate deploy
+from the extension**, on its own track. It is a static site — no build step, no
+server code — hosted on **Vercel** ([D055](decisions.md#d055),
+[D056](decisions.md#d056)). The Chrome Web Store requires a public privacy-policy
+URL, and this site is what provides it while the repository itself stays private.
+
+**How it deploys — automatically, from `prod`.** The Vercel project is connected
+to this GitHub repo. Its production branch is **`prod`**, so **the moment a change
+to `website/` lands on `prod`, Vercel rebuilds and redeploys** the site at
+`https://dsa-helper-zeta.vercel.app`. There is nothing to run by hand — no
+`wrangler deploy`, no upload. (The old Cloudflare `wrangler.jsonc` has been
+removed; deployment is entirely Vercel's GitHub integration now.)
+
+The practical consequence: **a `website/` edit only goes live once it reaches
+`prod`.** Editing it on `dev` changes nothing users see until `dev` → `prod` is
+merged. This is the same "the deploy branch is the source of truth" rule the
+extension follows, just pointed at a different branch consumer.
+
+### The hard-coded link — how the extension finds the policy
+
+The extension does **not** fetch the site or discover its URL at runtime. The
+address is a **compile-time constant**: `SITE_URL` in
+[`src/core/links.ts`](../src/core/links.ts), currently
+`https://dsa-helper-zeta.vercel.app`. `privacyUrl()` builds `${SITE_URL}/privacy.html`
+from it, and that string is **baked into whatever build you ship**. So the link
+the installed extension opens is frozen at the version it was built with — it does
+not follow the site if the site later moves.
+
+Two independent places therefore hold this URL, and both must agree:
+
+1. **`SITE_URL`** in the extension build (the in-extension "Privacy policy" link).
+2. **The Web Store listing's Privacy Policy field** (what reviewers and the store
+   page point at) — also mirrored in [STORE-LISTING.md](STORE-LISTING.md).
+
+### If the deployment ever changes (new URL, new host, or custom domain)
+
+Because the URL is hard-coded, changing where the site lives is **not** just a
+hosting change — it requires shipping a new extension build. Do all of these, or
+the in-extension link will point at a dead address for already-installed users:
+
+1. **Update `SITE_URL`** in [`src/core/links.ts`](../src/core/links.ts) to the new
+   origin (no trailing slash). This is the only code change.
+2. **Cut a new extension release** (the flow above) so the corrected link is in a
+   published build. Users on the old build keep the old, now-stale link until they
+   update — a compile-time constant cannot be hot-fixed, which is the tradeoff for
+   having no runtime network dependency.
+3. **Update the Web Store** Privacy Policy URL field, and
+   [STORE-LISTING.md](STORE-LISTING.md) to match.
+4. **Update the docs** that name the concrete URL: this file,
+   [STORE-LISTING.md](STORE-LISTING.md), [todo.md](todo.md) #4, and record the
+   move as a new decision revising [D056](decisions.md#d056).
+5. **If the host itself changes** (away from Vercel) or the production branch
+   changes, reconnect/reconfigure the integration accordingly, and make sure the
+   new host still publishes **only** `website/` — nothing outside it, so the
+   private `docs/` tree never leaks ([D055](decisions.md#d055)).
+
+A **custom domain** on the same Vercel project is the cheapest kind of move: point
+the domain at the project in Vercel, then do steps 1–4 with the new domain. The
+old `*.vercel.app` URL keeps working, so there is no hard cutover — but the
+in-extension link is still only corrected by a new release.
+
+---
+
 ## If a release run fails
 
 - **Fix forward with a new patch tag** (`v0.2.1`). Do **not** delete and
