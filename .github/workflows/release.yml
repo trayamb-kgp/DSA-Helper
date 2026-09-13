@@ -1,0 +1,105 @@
+# Release — tag-triggered (D052, D053, D054).
+#
+# Fires only on a pushed tag `v*`. Order is deliberate:
+#   guard version -> guard branch -> verify -> build -> zip -> CWS upload
+#   -> GitHub Release (last)
+# so a failed Web Store upload never leaves an orphan Release advertising a
+# version that never shipped.
+#
+# The Web Store step UPLOADS TO THE DRAFT ONLY (D054). Publishing and the
+# staged rollout (start 10%, D030) are a manual dashboard action.
+#
+# If a run fails after the tag exists, cut a new patch tag (v0.2.1) rather than
+# moving the existing one — moved tags are a footgun once anything references
+# the old SHA.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# One release per tag; never interrupt an in-flight release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create the GitHub Release
+
+jobs:
+  release:
+    name: package · upload to Web Store draft · GitHub Release
+    runs-on: ubuntu-latest
+    # A gated environment lets a reviewer approve the deploy and holds the
+    # four CWS secrets.
+    environment: release
+    steps:
+      - name: Checkout tagged commit (full history for the ancestry guard)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Guard — tag equals package.json version (D053)
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "tag=$TAG_VERSION  package.json=$PKG_VERSION"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Guard — tag is on prod (D052, hard fail)
+        run: |
+          git fetch origin +refs/heads/prod:refs/remotes/origin/prod
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/prod; then
+            echo "::error::tag $GITHUB_REF_NAME ($GITHUB_SHA) is not an ancestor of prod"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Re-verify from scratch: a tag can point anywhere; never trust an
+      # earlier CI run on this commit.
+      - run: npm run verify
+
+      - name: Package dist/ into a zip
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP="dsa-helper-${VERSION}.zip"
+          (cd dist && zip -r "../${ZIP}" .)
+          echo "ZIP=${ZIP}" >> "$GITHUB_ENV"
+
+      - name: Upload to Chrome Web Store draft (upload only — D054)
+        run: |
+          npx --yes chrome-webstore-upload-cli@3 upload \
+            --source "${ZIP}" \
+            --extension-id "${{ secrets.CWS_EXTENSION_ID }}" \
+            --client-id "${{ secrets.CWS_CLIENT_ID }}" \
+            --client-secret "${{ secrets.CWS_CLIENT_SECRET }}" \
+            --refresh-token "${{ secrets.CWS_REFRESH_TOKEN }}"
+          # No --auto-publish: the build lands in the draft for a human to
+          # publish at a staged rollout (D030, D054).
+
+      - name: Extract this version's changelog section for the release body
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {f=1; next}
+            f && /^## \[/ {exit}
+            f {print}
+          ' docs/CHANGELOG.md > release-notes.md || true
+          if [ ! -s release-notes.md ]; then
+            echo "See [docs/CHANGELOG.md](docs/CHANGELOG.md)." > release-notes.md
+          fi
+
+      - name: Create GitHub Release (last) with the zip attached
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          body_path: release-notes.md
+          files: ${{ env.ZIP }}
