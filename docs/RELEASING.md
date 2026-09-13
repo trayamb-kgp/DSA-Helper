@@ -56,32 +56,110 @@ first release is manual, the pipeline takes over from the second.
    [Google Cloud Console](https://console.cloud.google.com):
    1. Create or select a project.
    2. APIs & Services → **Library** → enable the **Chrome Web Store API**.
-   3. APIs & Services → **OAuth consent screen** → User type **External**; fill
-      app name and your emails. **Then set publishing status to "In production"
-      (publish the app).** ⚠️ While it stays in *Testing*, refresh tokens expire
-      after **7 days** and releases break weekly; in production the token does
-      not expire. No Google verification is needed since you are the only user.
-   4. APIs & Services → **Credentials** → **Create Credentials** → **OAuth
-      client ID** → application type **Desktop app**. Copy the **Client ID** and
-      **Client secret**.
+   3. **OAuth consent screen** (now under *Google Auth Platform → Branding /
+      Audience*) → User type **External**; fill app name, support email, the
+      home page (`https://dsa-helper-zeta.vercel.app/`) and the privacy-policy
+      link (`https://dsa-helper-zeta.vercel.app/privacy.html`).
+   4. **Choose Testing or Production** — this decides the token's lifetime, and
+      it is the one real decision here:
 
-3. **`CWS_REFRESH_TOKEN`** — the OAuth token tied to those credentials. Easiest,
-   in your own terminal:
+      | | **Testing** + yourself as a test user | **Production**, left unverified *(recommended)* |
+      |---|---|---|
+      | Refresh-token lifetime | ⚠️ **expires ~7 days** — likely dead by your next release | ✅ **does not expire** |
+      | Setup | Audience → **Test users → Add users** → your Gmail | Audience → **Publish app → Confirm** |
+      | One-time friction | none | a **"Google hasn't verified this app"** screen when you authorize → **Advanced → Go to DSA Helper (unsafe) → Continue** (safe: your own app) |
+      | Verification | n/a | **not required for it to work** — it only removes the warning and a 100-user cap, neither of which matters here. **Do not** submit for verification on the `vercel.app` subdomain: you can't prove ownership of `vercel.app`, so it will get stuck. A custom domain would be needed first. |
+
+      For a solo release pipeline, **Production-unverified** is the better choice
+      — the 7-day expiry in Testing means the token is almost always dead exactly
+      when you go to release.
+   5. **Credentials → Create Credentials → OAuth client ID → application type
+      _Desktop app_.** Copy the **Client ID** and **Client secret**. The type
+      **must be Desktop app** for the CLI in the next step — a *Web application*
+      client makes the token exchange fail with `Unauthorized`.
+
+3. **`CWS_REFRESH_TOKEN`** — the long-lived OAuth token tied to those
+   credentials. Easiest, in your own terminal:
    ```bash
    npx chrome-webstore-upload-keys
    ```
-   It prompts for the Client ID + secret, opens a browser to authorize with the
-   **same Google account that owns the CWS item**, and prints the refresh token.
-   (Manual alternative: [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
-   with "Use your own OAuth credentials", scope
-   `https://www.googleapis.com/auth/chromewebstore`, then exchange the code for
-   tokens.)
+   It prompts for the **Desktop-app** Client ID + secret, opens a browser to
+   authorize with the **same Google account that owns the CWS item** (bypass the
+   unverified-app warning as above if you chose Production), and prints the
+   refresh token. Authorize promptly — a long pause can expire the one-time code
+   and also fail with `Unauthorized`.
+
+   *If it errors with `Unauthorized`:* the client is almost certainly a *Web
+   application* client, not *Desktop app* — create a Desktop-app client and use
+   its ID/secret. (Manual alternative: the
+   [OAuth 2.0 Playground](https://developers.google.com/oauthplayground) with
+   "Use your own OAuth credentials" and scope
+   `https://www.googleapis.com/auth/chromewebstore` — but that route needs a
+   *Web application* client with the playground's redirect URI added, the
+   opposite of the CLI. Mixing the two up is the usual cause of `Unauthorized`.)
 
 Add all four under Settings → Environments → `release` → **Environment secrets**
 (names exactly as above). A green release run is your confirmation they are
 correct — the upload step fails loudly on a bad or expired credential. If it
 ever fails with an auth error, regenerate `CWS_REFRESH_TOKEN` and update the
 secret; that is the usual maintenance point.
+
+### How this authentication works (the OAuth flow)
+
+The point of all the above is to let the CI release job act on the Chrome Web
+Store **as you**, over the store's API, **without ever holding your Google
+password**. That is what OAuth is for. The pieces fit together like this:
+
+1. **Google Cloud project** (`DSA Helper`) — just the container for the API
+   access and credentials.
+2. **Enable the Chrome Web Store API** — turns on the endpoint the release job
+   will call to upload the build.
+3. **OAuth consent screen / branding** — declares who the app is (name, support
+   email, home page, privacy policy) and, via Testing vs Production, how long
+   its tokens live.
+4. **A Desktop-app OAuth client** — gives a **Client ID + Client secret**: the
+   identity of *the app doing the asking*.
+5. **One-time browser authorization** — you sign in as the Google account that
+   owns the store item and consent to the `chromewebstore` scope. This is the
+   only step a human ever does, and it exists so a person — not a script —
+   grants the access. In return Google issues a **refresh token**: a long-lived
+   credential that says "this app may act for this account, for this scope."
+6. **Every release run, automatically** — the workflow sends the **refresh
+   token + client id/secret** to Google and gets back a **short-lived access
+   token** (good for ~1 hour), then uses that access token to call the Chrome
+   Web Store API and **upload the new build to the draft**. The refresh token
+   never expires (Production) so this repeats indefinitely with no human step;
+   the access token is minted fresh each time and thrown away.
+
+So: the client id/secret identify the *app*, the refresh token is the *standing
+permission* from your account, and the access token is the *disposable key* used
+for each actual API call. Publishing the uploaded draft is still a separate,
+manual dashboard action — the token only ever **uploads**, never publishes.
+
+### Which Google account matters where
+
+Three account roles are involved, and they do **not** all have to be the same
+Gmail. Only one of them is authoritative.
+
+| Role | Which account | Must match the extension's account? |
+|---|---|---|
+| **Cloud project owner** — created the project, enabled the API, made the OAuth client | Whatever Gmail you were signed into in Cloud Console | ❌ No — can be a different Gmail |
+| **The authorization** — the Gmail you sign in as when generating the refresh token | Chosen on the Google sign-in screen during `chrome-webstore-upload-keys` | ✅ **Yes — this is the one that matters** |
+| **CWS item owner** — the developer account that can edit/publish the extension | The account tied to your CWS dashboard ($5 registration) | (this is the account the authorization must equal) |
+
+**The rule.** The **refresh token carries the identity and permission of
+whichever account you authorized with** — the client id/secret carry no user,
+they only identify the app. So the Cloud-project Gmail is irrelevant to *which*
+extension you can touch; what's authoritative is the account you pick on the
+consent screen when minting the token, and **that account must have edit rights
+to the store item** (`CWS_EXTENSION_ID`). At release time Google checks that
+*that* account may edit *that* item; if it can't, the upload fails with a
+permission error even though the token is valid.
+
+**Practical advice.** Simplest is to use the **same Gmail — your CWS developer
+account — for all three**. If your Cloud project happens to live under a
+different Gmail, that's fine; just make sure the **authorization step** signs in
+as the CWS-owning account.
 
 ---
 
