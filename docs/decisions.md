@@ -73,6 +73,7 @@
 | [D052](#d052) | CI/CD is two GitHub Actions workflows; release is tag-triggered on `prod` | Accepted | 2026-09-13 |
 | [D053](#d053) | `package.json` is the single version source; manifest derives from it; CI guards tag == version | Accepted | 2026-09-13 |
 | [D054](#d054) | Release uploads to the Web Store as a draft only; publish and staged rollout stay manual | Accepted | 2026-09-13 |
+| [D055](#d055) | Privacy policy hosted on its own static site so the repository can be private | Accepted | 2026-09-14 |
 | **Implementation** ||||
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
@@ -731,7 +732,7 @@ The privacy policy points at the repository copy rather than a hosted page becau
 
 **Consequences.** `pendingReleaseValues()` reports what is still unset, so "we forgot" is answerable by a function rather than by re-reading a checklist. Two items in [todo.md](todo.md) narrow from decisions to substitutions. The About section of the options page and the Diagnostics "Open an issue" button appear only once their values exist, which means the first published build may ship without them — acceptable, because the diagnostics report is still built and still copyable, and the link was only ever a convenience on top.
 
-**Status.** Accepted · 2026-09-03 · see [D031](#d031), [todo.md](todo.md) #1, #4
+**Status.** Accepted · 2026-09-03 · privacy-policy source and report destination revised by [D055](#d055) (2026-09-14) · see [D031](#d031), [todo.md](todo.md) #1, #4
 
 <a id="d047"></a>
 ### D047 — End-to-end tests run on the built extension, on Edge
@@ -893,8 +894,23 @@ Because several platforms restrict automated access and content reproduction, th
 
 **Status.** Accepted · 2026-09-13 · see [implementation-plan-4](implementation-plan/implementation-plan-4.md) Phase 3, [D030](#d030), [D052](#d052)
 
+<a id="d055"></a>
+### D055 — The privacy policy is hosted on its own static site, so the repository can be private
+
+**Decision.** The privacy policy and a small landing page are served from a dedicated static site (Cloudflare Pages), built from a new top-level `website/` directory, at a public URL held in `SITE_URL` (`core/links.ts`). `privacyUrl()` points there (`${SITE_URL}/privacy.html`) instead of at a file in the repository. The GitHub repository becomes **private**. The broken-page-report link (`issueUrl()`) routes to the contact email via `mailto:` rather than a GitHub new-issue page. `REPO_SLUG`, `repoUrl()` and the `docs/PRIVACY.md`-blob URL are removed; `SITE_URL` replaces `REPO_SLUG` as the one pending release value. Revises the privacy-policy source and the report destination of [D046](#d046), and lifts the "the repo must stay public" constraint carried by [D048](#d048) and implementation-plan-3.
+
+**Context.** The owner wants the source private. This is consistent with the source-available PolyForm Strict licence ([D048](#d048)), which already forbids reuse — the repository was kept *public* only because [D046](#d046) had `privacyUrl()` read `docs/PRIVACY.md` from the public repo and `issueUrl()` deep-link to the repo's issue tracker. Both break the instant the repo goes private (a private repo's blob and `issues/new` pages 404 for users). So the two public dependencies had to be re-homed before privacy was possible.
+
+**Reasoning.** Hosting the policy on a static site decouples the public policy URL from repository visibility: the Web Store's requirement — a reachable privacy-policy URL — is met by the site, not by GitHub. The site publishes **only** the `website/` directory, so the internal `docs/` tree (spec, decisions, plans) never becomes public — which the tempting "serve `/docs` via Pages" shortcut would have leaked wholesale. Routing the report to email preserves the [D031](#d031) broken-page-report feature — the user still copies the code-free, statement-free diagnostic blob with the button beside the link — without any public surface; the copy button does the real work, the link is the convenience, exactly as [D046](#d046) framed it. The single-module, degrade-to-`null` design of [D046](#d046) is retained; only the destinations change, and `pendingReleaseValues()` tracks `SITE_URL` the same way it tracked `REPO_SLUG`.
+
+**Alternatives.** GitHub Pages from the private repo on GitHub Pro (rejected: paid, ~$4/mo, and the published site is public anyway — no privacy gain for the cost); a separate public mirror repo just for Pages (rejected: a second repo to keep in sync for two files); keep the repo public under the source-available licence (rejected: the owner wants the source itself private, which the licence anticipates but does not require); a separate public issues-only repo for reports (rejected: another public repo and a tracker to tend, when the contact email already exists and D031's report needs no tracker). Cloudflare Pages over Netlify is a free-tier equivalence — either serves a private repo's output; the setting that matters on both is a **build output directory of `website`** with no build command, so nothing outside it is published.
+
+**Consequences.** `website/` is the deployment root and the publish boundary; nothing outside it reaches the web. `privacy.html` moved from the repo root into `website/`; `docs/PRIVACY.md` stays as the in-repo Markdown reference. `SITE_URL` in `core/links.ts` is the single value to fill once Cloudflare returns the `*.pages.dev` address (or a custom domain); until then `privacyUrl()` is `null`, `pendingReleaseValues()` reports `SITE_URL`, and the store submission is blocked on it — the same degrade-to-nothing contract as before. The Diagnostics link label changes from "Open an issue" to "Email the report". `todo.md` #4 and `STORE-LISTING.md` are updated; the "keep the repo public" notes in [D048](#d048)/implementation-plan-3 no longer apply.
+
+**Status.** Accepted · 2026-09-14 · revises [D046](#d046) · see [D031](#d031), [D048](#d048), [`src/core/links.ts`](../src/core/links.ts), [STORE-LISTING.md](STORE-LISTING.md)
+
 ---
 
 ## Superseded and deprecated
 
-*None yet.* When a decision is replaced, it stays in place above with its status changed to `Superseded by D0xx`, and is listed here with a one-line note on what changed and why. The record of the wrong turn is often more useful than the correction.
+- **[D046](#d046)** — *partially revised by [D055](#d055)* (2026-09-14). Its single-module, degrade-to-`null` design for outward URLs stands; what changed is where two of them point. The privacy policy is now hosted on a static site (`SITE_URL`) rather than read from `docs/PRIVACY.md` in the repo, and the broken-page report routes to the contact email rather than a GitHub issue — both so the repository can be private. `REPO_SLUG`/`repoUrl()` are gone, replaced by `SITE_URL`.

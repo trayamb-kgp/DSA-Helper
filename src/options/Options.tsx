@@ -38,9 +38,10 @@ import { copyInPage } from '../content/platform/clipboard';
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
 /**
- * Both are null until their one-line values are filled in (core/links.ts).
- * Every use below renders nothing rather than a dead link — the report is
- * still built and still copyable, which is the part that matters.
+ * ISSUE_URL resolves as soon as CONTACT_EMAIL is set (it routes to email now,
+ * D031 revised); PRIVACY_URL stays null until SITE_URL is filled in
+ * (core/links.ts). Every use below renders nothing rather than a dead link —
+ * the report is still built and still copyable, which is the part that matters.
  */
 const ISSUE_URL = issueUrl();
 const PRIVACY_URL = privacyUrl();
@@ -448,8 +449,8 @@ export function Options() {
         <div className="field-actions">
           <CopyButton text={report} label="Copy a broken-page report" />
           {ISSUE_URL ? (
-            <a className="ghost" href={ISSUE_URL} target="_blank" rel="noreferrer">
-              Open an issue
+            <a className="ghost" href={ISSUE_URL}>
+              Email the report
             </a>
           ) : null}
         </div>
