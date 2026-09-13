@@ -91,7 +91,7 @@ The form asks you to tick what is collected. **Tick nothing.** Then certify all 
 - [x] I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - [x] I do not use or transfer user data to determine creditworthiness or for lending purposes
 
-**Privacy policy URL:** the copy hosted at `${SITE_URL}/privacy.html` — the static site served from `website/` on Cloudflare Pages ([D055](decisions.md#d055)). Set `SITE_URL` in [`src/core/links.ts`](../src/core/links.ts) once Cloudflare returns the address, and the in-extension privacy link resolves at the same time. The repository itself is private; the policy is public because the site is, not because the repo is.
+**Privacy policy URL:** `https://dsa-helper-zeta.vercel.app/privacy.html` — the static site served from `website/` on Vercel ([D055](decisions.md#d055), provider [D056](decisions.md#d056)). `SITE_URL` in [`src/core/links.ts`](../src/core/links.ts) is set to this origin, so the in-extension privacy link resolves. The repository itself is private; the policy is public because the site is, not because the repo is.
 
 If a reviewer asks why an extension that reads problem statements and source code collects nothing: it assembles that text into a query or a prompt in the browser, uses it for that one action, and discards it. It is never transmitted by the extension, because the extension makes no requests.
 
@@ -131,8 +131,8 @@ Work top to bottom. Nothing below is optional.
 **Blockers — the listing cannot be submitted with any of these open**
 
 - [ ] `CONTACT_EMAIL` set in [`src/core/links.ts`](../src/core/links.ts), and the same address pasted into [PRIVACY.md](PRIVACY.md) → Contact ([todo.md](todo.md) #1)
-- [ ] `SITE_URL` set in [`src/core/links.ts`](../src/core/links.ts) — the Cloudflare Pages address for the `website/` site ([todo.md](todo.md) #4, [D055](decisions.md#d055))
-- [ ] Privacy policy reachable at `${SITE_URL}/privacy.html`, and that URL entered on the form
+- [x] `SITE_URL` set in [`src/core/links.ts`](../src/core/links.ts) — the Vercel address `https://dsa-helper-zeta.vercel.app` for the `website/` site ([todo.md](todo.md) #4, [D055](decisions.md#d055)/[D056](decisions.md#d056))
+- [ ] Privacy policy URL `https://dsa-helper-zeta.vercel.app/privacy.html` (live, returns 200) entered on the form
 - [x] Licence chosen and [`LICENSE`](../LICENSE) committed — PolyForm Strict 1.0.0 ([todo.md](todo.md) #3)
 - [x] Privacy policy effective date set ([todo.md](todo.md) #2)
 

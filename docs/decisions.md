@@ -74,6 +74,7 @@
 | [D053](#d053) | `package.json` is the single version source; manifest derives from it; CI guards tag == version | Accepted | 2026-09-13 |
 | [D054](#d054) | Release uploads to the Web Store as a draft only; publish and staged rollout stay manual | Accepted | 2026-09-13 |
 | [D055](#d055) | Privacy policy hosted on its own static site so the repository can be private | Accepted | 2026-09-14 |
+| [D056](#d056) | The static site is hosted on Vercel | Accepted | 2026-09-14 |
 | **Implementation** ||||
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
@@ -907,7 +908,26 @@ Because several platforms restrict automated access and content reproduction, th
 
 **Consequences.** `website/` is the deployment root and the publish boundary; nothing outside it reaches the web. `privacy.html` moved from the repo root into `website/`; `docs/PRIVACY.md` stays as the in-repo Markdown reference. `SITE_URL` in `core/links.ts` is the single value to fill once Cloudflare returns the `*.pages.dev` address (or a custom domain); until then `privacyUrl()` is `null`, `pendingReleaseValues()` reports `SITE_URL`, and the store submission is blocked on it — the same degrade-to-nothing contract as before. The Diagnostics link label changes from "Open an issue" to "Email the report". `todo.md` #4 and `STORE-LISTING.md` are updated; the "keep the repo public" notes in [D048](#d048)/implementation-plan-3 no longer apply.
 
-**Status.** Accepted · 2026-09-14 · revises [D046](#d046) · see [D031](#d031), [D048](#d048), [`src/core/links.ts`](../src/core/links.ts), [STORE-LISTING.md](STORE-LISTING.md)
+**Status.** Accepted · 2026-09-14 · revises [D046](#d046) · static-host provider revised by [D056](#d056) (2026-09-14) · see [D031](#d031), [D048](#d048), [`src/core/links.ts`](../src/core/links.ts), [STORE-LISTING.md](STORE-LISTING.md)
+
+The *choice of host* was left open in D055 (it named Cloudflare Pages, with Netlify a noted equivalent). That specific choice is now settled by D056 below; the decision D055 actually records — policy on its own static site so the repo can be private — is unchanged.
+
+---
+
+<a id="d056"></a>
+### D056 — The static site is hosted on Vercel
+
+**Decision.** The `website/` static site (landing page + `privacy.html`) is deployed on **Vercel**, at `https://dsa-helper-zeta.vercel.app`. `SITE_URL` in `core/links.ts` is set to that origin, so `privacyUrl()` resolves to `https://dsa-helper-zeta.vercel.app/privacy.html`. The Cloudflare Worker config (`wrangler.jsonc`) is removed. This settles the open host choice in [D055](#d055); everything else D055 decided stands.
+
+**Context.** D055 established that the policy is served from its own static site so the repository can be private, but left the provider open (it named Cloudflare Pages, with Netlify equivalent). The Cloudflare route was set up (`wrangler.jsonc`, an assets-only Worker deployed from `prod`) but not settled on. The owner then chose to deploy on Vercel instead and did so — the site is live and returns 200 at both `/` and `/privacy.html`.
+
+**Reasoning.** The requirement D055 imposed on any host is the only thing that mattered: publish **only** `website/` so the internal `docs/` tree never leaks. Vercel meets it the same way Cloudflare would — the site's root is the `website/` directory, nothing outside it is served — so the switch is a provider swap, not a change to the decision. Vercel was the owner's preference and is already deployed and reachable, which removes the one remaining blocker on the store's privacy-policy URL.
+
+**Alternatives.** Cloudflare Pages / assets-only Worker (set up first, then dropped in favour of Vercel — owner's preference; `wrangler.jsonc` removed rather than left as dead config); Netlify (the D055-noted equivalent, not pursued). All three are free-tier static hosts that serve a private repo's `website/` output; the provider is not load-bearing for the decision D055 records.
+
+**Consequences.** `SITE_URL` is set, so `privacyUrl()` resolves and `pendingReleaseValues()` no longer reports it — the store submission is no longer blocked on the policy URL. `wrangler.jsonc` is deleted. The site redeploys from whatever branch Vercel is connected to (via the GitHub integration), so future edits to `website/` must reach that branch to go live. `STORE-LISTING.md` and `todo.md` #4 are updated to name Vercel and the concrete URL. No extension code beyond the one-line `SITE_URL` value changes.
+
+**Status.** Accepted · 2026-09-14 · settles the host choice left open by [D055](#d055) · see [`src/core/links.ts`](../src/core/links.ts), [STORE-LISTING.md](STORE-LISTING.md), [todo.md](todo.md) #4
 
 ---
 

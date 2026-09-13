@@ -2,12 +2,11 @@
  * Outward-facing identifiers, in one place.
  *
  * ---------------------------------------------------------------------------
- * TWO VALUES ARE STILL PENDING. Both are one-line edits, and this is the only
- * file that has to change:
+ * The two release values live here, and this is the only file that changes them:
  *
- *   1. SITE_URL       — the hosted site's origin, once Cloudflare Pages is
- *                       connected and hands over its address (todo.md #4)
- *   2. CONTACT_EMAIL  — the dedicated alias for the store listing (todo.md #1)
+ *   1. SITE_URL       — the hosted site's origin. Set: the static site (landing
+ *                       page + privacy policy) is deployed on Vercel (todo.md #4).
+ *   2. CONTACT_EMAIL  — the dedicated alias for the store listing (todo.md #1).
  *
  * The rest of the codebase asks for these through the functions below, never
  * by hardcoding a URL, so nothing goes stale and nothing has to be hunted for
@@ -19,17 +18,17 @@
  * These are compile-time constants, not settings. They describe the project,
  * not the user, so they are deliberately not in `chrome.storage` (D046).
  *
- * The privacy policy is hosted on its own static site (Cloudflare Pages), not
- * read out of the GitHub repository, so the repository can stay private while
- * the policy URL the Web Store requires stays public. See D046 (revised).
+ * The privacy policy is hosted on its own static site (Vercel), not read out of
+ * the GitHub repository, so the repository can stay private while the policy URL
+ * the Web Store requires stays public. See D046 (revised) and D055/D056.
  * ---------------------------------------------------------------------------
  */
 
 /**
- * The hosted site's origin, no trailing slash — e.g. `https://dsa-helper.pages.dev`.
- * Null until Cloudflare Pages is connected and its address is known.
+ * The hosted site's origin, no trailing slash. The static site is deployed on
+ * Vercel; this is the address it serves the landing page and `privacy.html` at.
  */
-export const SITE_URL: string | null = null;
+export const SITE_URL: string | null = 'https://dsa-helper-zeta.vercel.app';
 
 /** The address published in the privacy policy and the store listing. */
 export const CONTACT_EMAIL: string | null = 'support.dsahelper@gmail.com';
