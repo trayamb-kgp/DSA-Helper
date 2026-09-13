@@ -5,7 +5,8 @@
  * TWO VALUES ARE STILL PENDING. Both are one-line edits, and this is the only
  * file that has to change:
  *
- *   1. REPO_SLUG      — set once the GitHub repository exists (todo.md #4)
+ *   1. SITE_URL       — the hosted site's origin, once Cloudflare Pages is
+ *                       connected and hands over its address (todo.md #4)
  *   2. CONTACT_EMAIL  — the dedicated alias for the store listing (todo.md #1)
  *
  * The rest of the codebase asks for these through the functions below, never
@@ -17,45 +18,47 @@
  *
  * These are compile-time constants, not settings. They describe the project,
  * not the user, so they are deliberately not in `chrome.storage` (D046).
+ *
+ * The privacy policy is hosted on its own static site (Cloudflare Pages), not
+ * read out of the GitHub repository, so the repository can stay private while
+ * the policy URL the Web Store requires stays public. See D046 (revised).
  * ---------------------------------------------------------------------------
  */
 
-/** `owner/repo` on GitHub. Null until the repository is public. */
-export const REPO_SLUG: string | null = null;
+/**
+ * The hosted site's origin, no trailing slash — e.g. `https://dsa-helper.pages.dev`.
+ * Null until Cloudflare Pages is connected and its address is known.
+ */
+export const SITE_URL: string | null = null;
 
 /** The address published in the privacy policy and the store listing. */
 export const CONTACT_EMAIL: string | null = 'support.dsahelper@gmail.com';
 
-/** The branch the published docs are read from. */
-const DEFAULT_BRANCH = 'main';
-
-export function repoUrl(): string | null {
-  return REPO_SLUG ? `https://github.com/${REPO_SLUG}` : null;
-}
-
 /**
- * Where a broken-page report is filed (D031).
+ * Where a broken-page report is sent (D031, revised).
  *
- * Deep-links to a new issue rather than the tracker's front page: someone who
- * has just copied a report is one paste away from finishing, and an extra
- * navigation is where that intent gets lost.
+ * Originally a deep link to a new GitHub issue. With the repository private
+ * (D046 revised) that page 404s for users, so the report is routed to the
+ * contact address instead: the user copies the report with the button beside
+ * this link, and this opens a pre-addressed email to paste it into. Carries a
+ * subject so the mail is self-identifying; the body is left to the paste.
  */
 export function issueUrl(): string | null {
-  const repo = repoUrl();
-  return repo ? `${repo}/issues/new` : null;
+  if (!CONTACT_EMAIL) return null;
+  const subject = encodeURIComponent('DSA Helper — broken page report');
+  return `mailto:${CONTACT_EMAIL}?subject=${subject}`;
 }
 
 /**
  * The public copy of the privacy policy.
  *
  * The Chrome Web Store requires a URL, not a file in a package, so this has to
- * resolve before submission. It points at the repository copy rather than a
- * hosted page: there is no site to host it on, and a policy that lives beside
- * the code it describes cannot silently diverge from it.
+ * resolve before submission. It points at the hosted static site rather than a
+ * file in the repository, which is what lets the repository be private while
+ * the policy stays publicly reachable (D046 revised).
  */
 export function privacyUrl(): string | null {
-  const repo = repoUrl();
-  return repo ? `${repo}/blob/${DEFAULT_BRANCH}/docs/PRIVACY.md` : null;
+  return SITE_URL ? `${SITE_URL}/privacy.html` : null;
 }
 
 /** `mailto:` for the published address, or null while there isn't one. */
@@ -70,7 +73,7 @@ export function contactUrl(): string | null {
  */
 export function pendingReleaseValues(): string[] {
   const pending: string[] = [];
-  if (!REPO_SLUG) pending.push('REPO_SLUG');
+  if (!SITE_URL) pending.push('SITE_URL');
   if (!CONTACT_EMAIL) pending.push('CONTACT_EMAIL');
   return pending;
 }

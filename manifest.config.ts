@@ -1,5 +1,8 @@
 import { defineManifest } from '@crxjs/vite-plugin';
 import { PROBLEM_PAGE_PATTERNS } from './src/core/urls';
+// package.json is the single source of truth for the version (D053). Bump it
+// once with `npm version`; the manifest — and the release tag guard — follow.
+import pkg from './package.json';
 
 /**
  * Problem pages we attach to (spec.md section 3). Read from core/urls.ts so
@@ -29,7 +32,7 @@ const PROBLEM_PAGES = [...PROBLEM_PAGE_PATTERNS];
 export default defineManifest({
   manifest_version: 3,
   name: 'DSA Helper',
-  version: '0.1.0',
+  version: pkg.version,
   description:
     'Turn the problem you are on into a YouTube search or a ready-to-send ChatGPT review, in one keystroke.',
 

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DSA Helper — a keystroke from stuck to unstuck</title>
+    <meta name="description" content="A Chrome extension for LeetCode, Codeforces, CodeChef and GeeksforGeeks. Turn the problem you're on — and the code you've written — into a YouTube search or a ready-to-send ChatGPT review, in one keystroke. Nothing leaves your browser." />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff; --fg: #18181b; --muted: #52525b; --accent: #4f46e5;
+        --border: #e4e4e7; --surface: #fafafa; --card: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0f12; --fg: #fafafa; --muted: #a1a1aa; --accent: #a5b4fc;
+          --border: #2a2a30; --surface: #17171b; --card: #17171b;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font: 16px/1.7 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      .wrap { max-width: 820px; margin: 0 auto; padding: 56px 24px 96px; }
+      a { color: var(--accent); }
+
+      header.hero { border-bottom: 1px solid var(--border); padding-bottom: 32px; margin-bottom: 8px; }
+      .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+      .brand img { width: 48px; height: 48px; border-radius: 11px; }
+      .brand .name { font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+      h1 { font-size: 34px; line-height: 1.2; margin: 0 0 14px; letter-spacing: -0.02em; }
+      .tagline { color: var(--muted); font-size: 18px; margin: 0 0 24px; max-width: 62ch; }
+      .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+      .btn {
+        display: inline-block; padding: 11px 20px; border-radius: 9px; font-weight: 600;
+        font-size: 15px; text-decoration: none; border: 1px solid transparent;
+      }
+      .btn.primary { background: var(--accent); color: #fff; }
+      @media (prefers-color-scheme: dark) { .btn.primary { color: #101014; } }
+      .btn.ghost { border-color: var(--border); color: var(--fg); background: var(--card); }
+      .pill {
+        display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--muted);
+        border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
+      }
+
+      h2 { font-size: 22px; margin: 48px 0 6px; letter-spacing: -0.01em; }
+      .section-sub { color: var(--muted); margin: 0 0 20px; }
+      p { margin: 0 0 14px; }
+
+      .actions { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+      .action {
+        border: 1px solid var(--border); background: var(--card); border-radius: 12px; padding: 18px 20px;
+      }
+      .action h3 { margin: 0 0 4px; font-size: 16.5px; }
+      .action .key {
+        font: 12.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+        background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px;
+      }
+      .action p { margin: 10px 0 0; font-size: 14.5px; color: var(--muted); }
+
+      .sites { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 0; padding: 0; list-style: none; }
+      .sites li {
+        border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+        padding: 8px 14px; font-size: 14.5px; font-weight: 550;
+      }
+      .sites li span { color: var(--muted); font-weight: 400; font-size: 13px; }
+
+      ul.points { margin: 0; padding-left: 22px; }
+      ul.points li { margin: 8px 0; }
+
+      .privacy-card {
+        margin: 12px 0 0; padding: 20px 22px; border-left: 3px solid var(--accent);
+        background: var(--surface); border-radius: 0 12px 12px 0;
+      }
+      .privacy-card strong { color: var(--fg); }
+
+      footer {
+        margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--border);
+        color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px 18px;
+      }
+      footer a { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div class="brand">
+          <img src="icon128.png" alt="" onerror="this.style.display='none'" />
+          <span class="name">DSA Helper</span>
+        </div>
+        <h1>A keystroke from stuck to unstuck.</h1>
+        <p class="tagline">
+          A Chrome extension for LeetCode, Codeforces, CodeChef and GeeksforGeeks. It turns the
+          problem you're looking at — and the code you've written — into a YouTube search or a
+          ready-to-send ChatGPT review, without retyping a thing.
+        </p>
+        <div class="cta-row">
+          <span class="pill">Coming soon to the Chrome Web Store</span>
+        </div>
+      </header>
+
+      <h2>Three actions</h2>
+      <p class="section-sub">From a shortcut, the toolbar popup, or the right-click menu.</p>
+      <div class="actions">
+        <div class="action">
+          <h3>Search YouTube <span class="key">Alt+Shift+Y</span></h3>
+          <p>Opens YouTube results for a query built from the problem — e.g. <em>LeetCode 912 Sort an Array solution</em>.</p>
+        </div>
+        <div class="action">
+          <h3>Ask ChatGPT <span class="key">Alt+Shift+G</span></h3>
+          <p>Opens ChatGPT with a full prompt already typed in — the problem, examples, constraints and your code. You read it and press Enter yourself.</p>
+        </div>
+        <div class="action">
+          <h3>Copy prompt</h3>
+          <p>Puts that same prompt on your clipboard without opening anything.</p>
+        </div>
+      </div>
+
+      <h2>Supported sites</h2>
+      <p class="section-sub">Practice and contest pages, where each platform has them.</p>
+      <ul class="sites">
+        <li>LeetCode <span>· practice + contest</span></li>
+        <li>Codeforces <span>· contest + gym</span></li>
+        <li>CodeChef <span>· practice + contest</span></li>
+        <li>GeeksforGeeks <span>· practice</span></li>
+      </ul>
+
+      <h2>Built the way you'd want it</h2>
+      <ul class="points">
+        <li><strong>The prompt and the search are templates you own</strong> — editable, with variables like <em>{title}</em>, <em>{statement}</em>, <em>{constraints}</em> and <em>{code}</em>, and a reset-to-default button.</li>
+        <li><strong>Nothing is sent for you by default.</strong> The ChatGPT prompt is typed in and left for you to read; nothing reaches OpenAI until you press Enter.</li>
+        <li><strong>Your code is the most protected thing it touches</strong> — never written to disk, never synced, never kept after the action that used it.</li>
+        <li><strong>It degrades instead of breaking.</strong> If a site redesigns, you get a shorter prompt or a simpler search, and it tells you what it couldn't read.</li>
+      </ul>
+
+      <h2>Privacy, in one line</h2>
+      <div class="privacy-card">
+        <strong>DSA Helper collects nothing, sends nothing, and has no servers.</strong>
+        No backend, no accounts, no analytics, no telemetry — everything happens inside your
+        browser, on your machine. <a href="privacy.html">Read the full privacy policy →</a>
+      </div>
+
+      <footer>
+        <span>© DSA Helper</span>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="mailto:support.dsahelper@gmail.com">Contact</a>
+      </footer>
+    </div>
+  </body>
+</html>

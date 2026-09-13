@@ -92,6 +92,7 @@ The core of this extension is putting a problem statement — content published 
 | [docs/implementation-plan/](docs/implementation-plan/) | Phase-by-phase build plan |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | The privacy statement |
 | [docs/STORE-LISTING.md](docs/STORE-LISTING.md) | Chrome Web Store copy, permission justifications and the release checklist |
+| [docs/RELEASING.md](docs/RELEASING.md) | The CI/CD release runbook — how a version ships to the Web Store |
 
 ## Development
 
