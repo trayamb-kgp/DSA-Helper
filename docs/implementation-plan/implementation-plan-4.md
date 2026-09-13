@@ -13,7 +13,9 @@ and branch/trigger model), [D053](../decisions.md#d053) (single version source +
 tag guard), [D054](../decisions.md#d054) (upload-to-draft only; publish and
 rollout stay manual).
 
-**Status:** not yet built. Phases are ordered so each is independently
+**Status:** built and committed on `dev` (not yet pushed). Phases 0–3 and the
+Phase 4 runbook are done; what remains is GitHub-side and manual — the four CWS
+secrets and branch protection. Phases are ordered so each is independently
 mergeable and leaves `main`/`dev` green.
 
 ---
@@ -57,18 +59,18 @@ means "the tag went out but nothing shipped" — fix forward and re-tag
 
 Prereq for the release guard; a small code change, shippable on its own.
 
-- [ ] In [manifest.config.ts](../../manifest.config.ts), replace the hardcoded
+- [x] In [manifest.config.ts](../../manifest.config.ts), replace the hardcoded
       `version: '0.1.0'` with the value from `package.json`:
       ```ts
       import pkg from './package.json';   // resolveJsonModule is on; tsconfig includes this file
       // ...
       version: pkg.version,
       ```
-- [ ] Confirm the emitted manifest still carries the right version:
+- [x] Confirm the emitted manifest still carries the right version:
       `npm run build && npm run check:build` (check-build already reads
-      `dist/manifest.json`'s `version`).
-- [ ] `npm run verify` stays green.
-- [ ] From now on, **never** edit the version in `manifest.config.ts`; bump
+      `dist/manifest.json`'s `version`). *Verified: emits `0.1.0`, checks pass.*
+- [x] `npm run verify` stays green.
+- [x] From now on, **never** edit the version in `manifest.config.ts`; bump
       `package.json` only.
 
 *Note:* `npm version` normally creates a git tag; use
@@ -81,21 +83,21 @@ Prereq for the release guard; a small code change, shippable on its own.
 
 The hermetic gate. Blocking.
 
-- [ ] Trigger on `pull_request` (any base) and `push` to `dev` and `prod`.
+- [x] Trigger on `pull_request` (any base) and `push` to `dev` and `prod`.
       (`main` PRs are covered by the base-agnostic `pull_request` trigger.)
-- [ ] `concurrency` keyed on the ref, `cancel-in-progress: true`, so
+- [x] `concurrency` keyed on the ref, `cancel-in-progress: true`, so
       superseded pushes don't pile up runners.
-- [ ] Single job `verify` on `ubuntu-latest`:
-  - [ ] `actions/checkout@<pinned sha>`
-  - [ ] `actions/setup-node@<pinned sha>` with `node-version` matching local
-        (Node 20/22 LTS) and `cache: npm`.
-  - [ ] `npm ci`
-  - [ ] `npm run verify` — this is `typecheck && test && build && check:build`,
+- [x] Single job `verify` on `ubuntu-latest`:
+  - [x] `actions/checkout@<pinned sha>` — pinned to `df4cb1c` (v6.0.3).
+  - [x] `actions/setup-node@<pinned sha>` with `node-version` matching local
+        (Node 20/22 LTS) and `cache: npm`. *Used Node 22, pinned `2499707` (v6.5.0).*
+  - [x] `npm ci`
+  - [x] `npm run verify` — this is `typecheck && test && build && check:build`,
         i.e. the same gate developers run. The fixture-based adapter unit tests
         that [D030](../decisions.md#d030) requires ride inside `npm run test`; no
         separate step needed.
-- [ ] `permissions: contents: read` (least privilege; this job publishes nothing).
-- [ ] Pin every third-party action to a full commit SHA, not a floating tag.
+- [x] `permissions: contents: read` (least privilege; this job publishes nothing).
+- [x] Pin every third-party action to a full commit SHA, not a floating tag.
 
 **Acceptance:** open a throwaway PR into `dev`; the `verify` check runs and
 blocks on failure. Add it as a required status check in branch protection for
@@ -108,21 +110,20 @@ blocks on failure. Add it as a required status check in branch protection for
 Adds the Playwright offline lane as a **separate, non-required** job — coverage
 signal without gating merges (chosen scope; the live lane stays deferred).
 
-- [ ] Second job `e2e` in `ci.yml` (or a sibling workflow), `needs: verify` so
+- [x] Second job `e2e` in `ci.yml` (or a sibling workflow), `needs: verify` so
       it only runs on an already-verified build.
-- [ ] `continue-on-error: true` **and** left out of required checks, so a red
+- [x] `continue-on-error: true` **and** left out of required checks, so a red
       run is visible but never blocks. (Revisit once it proves stable.)
-- [ ] Steps: `npm ci` → `npm run build` (the e2e fixtures refuse to run without
+- [x] Steps: `npm ci` → `npm run build` (the e2e fixtures refuse to run without
       a current `dist/` — see [playwright.config.ts](../../playwright.config.ts))
       → `npx playwright install chromium` → run the offline project only:
       `npm run test:e2e` (the `e2e` project excludes `*.live.spec.ts`).
-- [ ] Extensions need a real (non-old-headless) Chromium. Use the bundled
+- [x] Extensions need a real (non-old-headless) Chromium. Use the bundled
       Chromium under the **new** headless mode, which loads MV3 extensions
-      ([D047](../decisions.md#d047) addendum). Set the env the config expects
-      (`PW_HEADLESS=1`, and `PW_CHANNEL` left unset to use bundled Chromium);
-      wrap in `xvfb-run -a` if the new-headless path still needs a display on
-      the runner.
-- [ ] Upload `e2e/output/report` as an artifact on failure for triage.
+      ([D047](../decisions.md#d047) addendum). *Implemented as `PW_CHANNEL=chromium`
+      + `PW_HEADLESS=1` (the fixtures default `PW_CHANNEL` to `msedge`, so it must
+      be set explicitly, not left unset), wrapped in `xvfb-run -a`.*
+- [x] Upload `e2e/output/report` as an artifact on failure for triage.
 
 **Explicitly out of scope here:** the `live` lane and any nightly/scheduled
 workflow. Deferred by decision; the [D047](../decisions.md#d047) contract already
@@ -136,43 +137,43 @@ Tag-triggered. The order is deliberate: **verify → build → zip → CWS uploa
 GitHub Release last**, so a failed upload never leaves an orphan Release
 advertising a version that never shipped.
 
-- [ ] Trigger: `on: push: tags: ['v*']`.
-- [ ] `permissions: contents: write` (needs to create the Release).
-- [ ] `concurrency` keyed on the tag; do not cancel in progress.
-- [ ] Single job, `ubuntu-latest`, using the release **environment** (below):
-  1. [ ] `checkout` the tagged commit with `fetch-depth: 0` (the ancestry
+- [x] Trigger: `on: push: tags: ['v*']`.
+- [x] `permissions: contents: write` (needs to create the Release).
+- [x] `concurrency` keyed on the tag; do not cancel in progress.
+- [x] Single job, `ubuntu-latest`, using the release **environment** (below):
+  1. [x] `checkout` the tagged commit with `fetch-depth: 0` (the ancestry
          guard below needs full history and the `prod` ref, not the default
          shallow single-commit fetch).
-  2. [ ] **Version guard.** Fail unless the tag equals `package.json` version:
+  2. [x] **Version guard.** Fail unless the tag equals `package.json` version:
          strip the leading `v` from `github.ref_name`, compare to
          `node -p "require('./package.json').version"`, exit 1 on mismatch.
          This is the single highest-value safety check — it stops a tag that
          points at a commit whose manifest says something else.
-  3. [ ] **Branch-ancestry guard (hard fail).** Fail unless the tagged commit
+  3. [x] **Branch-ancestry guard (hard fail).** Fail unless the tagged commit
          is an ancestor of `prod` — i.e. the tag was actually cut from the
          release branch, not from `dev` or a stray commit. Fetch the branch and
          assert:
          ```bash
-         git fetch origin prod --depth=0
+         git fetch origin +refs/heads/prod:refs/remotes/origin/prod
          git merge-base --is-ancestor "$GITHUB_SHA" origin/prod \
            || { echo "::error::tag $GITHUB_REF_NAME is not on prod"; exit 1; }
          ```
          `--is-ancestor` exits non-zero when the commit is not contained in
          `prod`, which fails the step. This closes the gap left by the tag
          trigger firing regardless of branch ([D052](../decisions.md#d052)).
-  4. [ ] `npm ci`
-  5. [ ] `npm run verify` — re-verify from scratch; never trust that CI already
+  4. [x] `npm ci`
+  5. [x] `npm run verify` — re-verify from scratch; never trust that CI already
          ran on this commit (a tag can point anywhere).
-  6. [ ] Zip the built extension: `dist/` → `dsa-helper-<version>.zip`
+  6. [x] Zip the built extension: `dist/` → `dsa-helper-<version>.zip`
          (the naming matches the gitignored pattern already in
          [.gitignore](../../.gitignore); reuse `tools/` if a zip helper is added).
-  7. [ ] **Upload to Chrome Web Store (draft only).** Use
+  7. [x] **Upload to Chrome Web Store (draft only).** Use
          `chrome-webstore-upload-cli`'s `upload` command *without* a publish
          flag — [D054](../decisions.md#d054). Needs four secrets (below). Do
          **not** pass `--auto-publish`.
-  8. [ ] Create the GitHub Release last: `softprops/action-gh-release@<sha>`,
+  8. [x] Create the GitHub Release last: `softprops/action-gh-release@<sha>`,
          attaching the zip, body seeded from the version's CHANGELOG section.
-- [ ] Pin all actions to SHAs.
+- [x] Pin all actions to SHAs.
 
 **Secrets** (repo → Settings → Environments → a `release` environment, so a
 required reviewer can gate the deploy):
@@ -194,15 +195,16 @@ reference the old SHA).
 
 ## Phase 4 — Documentation & guardrails
 
-- [ ] Add a short **Release runbook** section to [docs/STORE-LISTING.md](../STORE-LISTING.md)
+- [x] Add a short **Release runbook** section to [docs/STORE-LISTING.md](../STORE-LISTING.md)
       or a new `docs/RELEASING.md`: the six-step flow above, the manual 10% →
       50% → 100% rollout, and the secret-rotation notes. Link it from
-      [README.md](../../README.md).
+      [README.md](../../README.md). *Created [docs/RELEASING.md](../RELEASING.md),
+      linked from the README docs table.*
 - [ ] Enable branch protection: require the `verify` check on `dev` and `prod`;
       keep `e2e` non-required.
-- [ ] Confirm `decisions.md` carries [D052](../decisions.md#d052)–[D054](../decisions.md#d054)
+- [x] Confirm `decisions.md` carries [D052](../decisions.md#d052)–[D054](../decisions.md#d054)
       (done alongside this plan).
-- [ ] Leave a `[Unreleased]` entry discipline note in place (CHANGELOG already
+- [x] Leave a `[Unreleased]` entry discipline note in place (CHANGELOG already
       documents it) — the release body is generated from it.
 
 ---
