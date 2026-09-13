@@ -33,6 +33,10 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 - **Documentation set** (2026-09-01 – 2026-09-02) — [spec.md](spec.md), [architecture.md](architecture.md), [domain.md](domain.md), [decisions.md](decisions.md), [todo.md](todo.md), [PRIVACY.md](PRIVACY.md), [TESTING.md](TESTING.md) and the [implementation plan](implementation-plan/implementation-plan-1.md).
 - **Placeholder icons** — generated locally by `tools/gen-placeholder-icons.py`, no third-party licence attached ([D009](decisions.md)).
 
+### Changed
+
+- **Emailing a broken-page report no longer depends on a mail app** (2026-09-14) — the diagnostics panel now offers **Open in Gmail** beside **Email the report**. "Email the report" opens your own mail app, which does nothing on a machine with no mail app set up; the new link opens a pre-addressed Gmail compose window in the browser instead, so the report always has somewhere to go. Copy the report first with the button beside them, then paste it in — it still carries no code and no problem text ([D057](decisions.md#d057)).
+
 ### Fixed
 
 - **Nothing outside the popup actually worked** (2026-09-03) — the keyboard shortcuts, the right-click menu and all three popup buttons had been inert in every build since the YouTube action shipped. Two source files were both named `index.ts`, and the build tool, which names each output after its file, wired the extension's background worker to the wrong one of them — so the part that listens for a shortcut was never loaded. Only the popup's own reading of the page still worked, which is why it looked alive. Fixed by renaming the files, and by adding checks that inspect the built extension rather than the source, so this cannot happen quietly again.

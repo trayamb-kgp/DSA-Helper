@@ -32,7 +32,7 @@ import { buildPrompt } from '../core/prompt';
 import { buildQuery, varsFromContext } from '../core/youtube';
 import { buildReport, fieldReports } from '../core/diagnostics';
 import { applyTheme, THEMES, type Theme } from '../core/theme';
-import { CONTACT_EMAIL, issueUrl, privacyUrl } from '../core/links';
+import { CONTACT_EMAIL, gmailComposeUrl, issueUrl, privacyUrl } from '../core/links';
 import { copyInPage } from '../content/platform/clipboard';
 
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
@@ -44,6 +44,7 @@ const EXTENSION_VERSION = chrome.runtime.getManifest().version;
  * the report is still built and still copyable, which is the part that matters.
  */
 const ISSUE_URL = issueUrl();
+const GMAIL_URL = gmailComposeUrl();
 const PRIVACY_URL = privacyUrl();
 
 /** A bundled problem to preview templates against before anything is captured. */
@@ -453,11 +454,20 @@ export function Options() {
               Email the report
             </a>
           ) : null}
+          {/* Always-opens fallback: a mailto does nothing when no OS mail
+              handler is registered, so offer an in-browser Gmail compose too
+              (D057). New tab, so the options page isn't navigated away. */}
+          {GMAIL_URL ? (
+            <a className="ghost" href={GMAIL_URL} target="_blank" rel="noreferrer">
+              Open in Gmail
+            </a>
+          ) : null}
         </div>
         <p className="muted">
-          The report holds the page's URL shape, the extension and Chrome versions, and which
-          fields were read. It contains <strong>no problem text and none of your code</strong> —
-          paste it as-is.
+          Copy the report, then use <em>Email the report</em> for your own mail app or{' '}
+          <em>Open in Gmail</em> if that opens nothing, and paste it in. The report holds the
+          page's URL shape, the extension and Chrome versions, and which fields were read. It
+          contains <strong>no problem text and none of your code</strong> — paste it as-is.
         </p>
       </Section>
 

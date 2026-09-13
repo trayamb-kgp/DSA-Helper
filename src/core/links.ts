@@ -33,6 +33,9 @@ export const SITE_URL: string | null = 'https://dsa-helper-zeta.vercel.app';
 /** The address published in the privacy policy and the store listing. */
 export const CONTACT_EMAIL: string | null = 'support.dsahelper@gmail.com';
 
+/** The subject both report links carry, so the mail is self-identifying. */
+const REPORT_SUBJECT = 'DSA Helper — broken page report';
+
 /**
  * Where a broken-page report is sent (D031, revised).
  *
@@ -41,11 +44,34 @@ export const CONTACT_EMAIL: string | null = 'support.dsahelper@gmail.com';
  * contact address instead: the user copies the report with the button beside
  * this link, and this opens a pre-addressed email to paste it into. Carries a
  * subject so the mail is self-identifying; the body is left to the paste.
+ *
+ * This is a `mailto:`, which the browser hands to the OS's registered mail
+ * handler — and does nothing, silently, when there is none (a common state on
+ * a fresh Windows profile). `gmailComposeUrl()` is the always-opens fallback
+ * the options page offers beside it (D057).
  */
 export function issueUrl(): string | null {
   if (!CONTACT_EMAIL) return null;
-  const subject = encodeURIComponent('DSA Helper — broken page report');
+  const subject = encodeURIComponent(REPORT_SUBJECT);
   return `mailto:${CONTACT_EMAIL}?subject=${subject}`;
+}
+
+/**
+ * A Gmail web-compose URL for the same report mail as `issueUrl()` (D057).
+ *
+ * The fallback beside the `mailto:` link: an `https:` compose window that
+ * always opens in the browser, no OS mail handler required — which is the one
+ * failure mode `issueUrl()` has. Gmail because the support alias is itself a
+ * Gmail account; a non-Gmail sender still reaches it, and anyone who prefers
+ * their own desktop mail app still has the `mailto:` link. Subject only; the
+ * body is left to the paste, same as the mailto (a long report can overflow a
+ * URL, and the copy button beside it already holds the text).
+ */
+export function gmailComposeUrl(): string | null {
+  if (!CONTACT_EMAIL) return null;
+  const to = encodeURIComponent(CONTACT_EMAIL);
+  const su = encodeURIComponent(REPORT_SUBJECT);
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}`;
 }
 
 /**

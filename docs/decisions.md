@@ -2,7 +2,7 @@
 
 **A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
 
-**Last updated:** 2026-09-13
+**Last updated:** 2026-09-14
 
 ---
 
@@ -75,6 +75,7 @@
 | [D054](#d054) | Release uploads to the Web Store as a draft only; publish and staged rollout stay manual | Accepted | 2026-09-13 |
 | [D055](#d055) | Privacy policy hosted on its own static site so the repository can be private | Accepted | 2026-09-14 |
 | [D056](#d056) | The static site is hosted on Vercel | Accepted | 2026-09-14 |
+| [D057](#d057) | Broken-page report offers a Gmail-compose fallback beside the mailto | Accepted | 2026-09-14 |
 | **Implementation** ||||
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
@@ -928,6 +929,22 @@ The *choice of host* was left open in D055 (it named Cloudflare Pages, with Netl
 **Consequences.** `SITE_URL` is set, so `privacyUrl()` resolves and `pendingReleaseValues()` no longer reports it — the store submission is no longer blocked on the policy URL. `wrangler.jsonc` is deleted. The site redeploys from whatever branch Vercel is connected to (via the GitHub integration), so future edits to `website/` must reach that branch to go live. `STORE-LISTING.md` and `todo.md` #4 are updated to name Vercel and the concrete URL. No extension code beyond the one-line `SITE_URL` value changes.
 
 **Status.** Accepted · 2026-09-14 · settles the host choice left open by [D055](#d055) · see [`src/core/links.ts`](../src/core/links.ts), [STORE-LISTING.md](STORE-LISTING.md), [todo.md](todo.md) #4
+
+---
+
+### D057 — The broken-page report offers a Gmail-compose fallback beside the mailto
+
+**Decision.** The diagnostics "Email the report" action stays a `mailto:` link (`issueUrl()`), and a second link, **"Open in Gmail"**, is added beside it — an `https://mail.google.com/mail/?view=cm…` compose URL (`gmailComposeUrl()`) that opens in a new tab. Both carry the same recipient (`CONTACT_EMAIL`) and subject; both leave the report body to a paste from the adjacent copy button. Both render only when `CONTACT_EMAIL` is set, degrading to nothing otherwise ([D046](#d046)).
+
+**Context.** With the report routed to the contact address as a `mailto:` ([D046](#d046) revised, [D055](#d055)), clicking "Email the report" did nothing on a machine with no registered mail handler — the exact state of a fresh Windows profile, and the one the owner hit after a clean install-and-load of the built extension. A `mailto:` is handed to the OS handler and fails **silently** when there is none: no tab, no error, no feedback.
+
+**Reasoning.** The `mailto:` is the right default — it respects whichever mail app a user actually uses — but it cannot be the *only* path, because its failure mode is invisible. An `https:` Gmail-compose URL cannot silently fail: the browser can always open it. Gmail specifically because the support alias is a Gmail account and the likely user is signed into Gmail in the same browser; a non-Gmail sender is unaffected (they use the mailto), and no one is worse off than before. The report body is deliberately **not** stuffed into either URL — a long report can overflow a URL and a `mailto:` handler may truncate it, sending a silently-clipped report — so the copy-then-paste model ([D031](#d031)) is kept and the helper text spells it out.
+
+**Alternatives.** *Gmail compose only* (drop the mailto) — rejected: forces every user through Gmail, including desktop-mail users, and shows a Gmail login to anyone not signed in. *Mailto only, with the address shown as copyable text* — rejected: the click still silently does nothing, which is the complaint. *Prefill the report into the mail body* — rejected: URL-length/truncation risk, and the copy button already carries the full text. *Detect a failed `mailto:` and fall back in JS* — not possible: the browser reports no success/failure for a protocol-handler hand-off.
+
+**Consequences.** `core/links.ts` gains `gmailComposeUrl()` and a shared `REPORT_SUBJECT`; the options page renders a second `.ghost` link and updated helper text. No new permission, no network call by the extension itself (the user's click opens Gmail, same as any link). If the support address ever leaves Gmail, `gmailComposeUrl()` must change or be dropped — it is the one report link that assumes a provider. Everything the report contains ([D031](#d031)'s redaction rule) is unchanged.
+
+**Status.** Accepted · 2026-09-14 · extends [D031](#d031)/[D046](#d046) (report routing) · see [`src/core/links.ts`](../src/core/links.ts), [`src/options/Options.tsx`](../src/options/Options.tsx)
 
 ---
 
