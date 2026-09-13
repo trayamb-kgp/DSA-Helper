@@ -1,0 +1,72 @@
+# Continuous integration — the hermetic gate (D052).
+#
+# `verify` is the blocking check: the same `npm run verify` a developer runs
+# locally (typecheck + unit tests + build + check-build), so the gate and the
+# local command cannot drift. The fixture-based adapter tests that D030
+# requires ride inside `npm run test`.
+#
+# `e2e` is the offline Playwright lane. It is deliberately NON-blocking
+# (continue-on-error + kept out of required checks) — coverage signal without
+# gating merges. The live lane and any nightly workflow stay deferred (D047).
+#
+# Actions are pinned to commit SHAs (supply-chain hardening); the trailing
+# comment records the human-readable version.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, prod]
+
+# Superseded runs on the same ref are cancelled; a new push wins.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify (typecheck · test · build · check-build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
+
+  e2e:
+    name: offline e2e (non-blocking)
+    runs-on: ubuntu-latest
+    needs: verify
+    # Non-blocking: a red run is visible but never fails the workflow. Do not
+    # add this job to required status checks until it proves non-flaky.
+    continue-on-error: true
+    env:
+      # Drive Playwright's bundled Chromium (Edge, the local default, is not on
+      # the runner) under the new headless mode, which loads MV3 extensions.
+      PW_CHANNEL: chromium
+      PW_HEADLESS: '1'
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # The e2e fixtures refuse to run without a current dist/ (playwright.config.ts).
+      - run: npm run build
+      - run: npx playwright install chromium
+      - name: Run offline e2e lane
+        run: xvfb-run -a npm run test:e2e
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: e2e/output/report
+          retention-days: 7

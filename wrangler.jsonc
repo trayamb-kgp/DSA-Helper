@@ -1,0 +1,10 @@
+{
+  // Static-assets-only Cloudflare Worker: serves the files in website/
+  // (the landing page + privacy policy) at a public URL, with no server code.
+  // Deployed by `npx wrangler deploy` from the repo root. See docs/decisions.md D055.
+  "name": "dsa-helper",
+  "compatibility_date": "2026-09-14",
+  "assets": {
+    "directory": "./website"
+  }
+}

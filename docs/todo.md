@@ -38,12 +38,12 @@ Still blocks publishing — the Web Store requires a working contact — but it 
 
 ## 4. Distribution
 
-- [x] Decide: unpacked install only, or publish to the Chrome Web Store — **Web Store**, with the source public on GitHub
-- [ ] Create the repository and set `REPO_SLUG` in [`src/core/links.ts`](../src/core/links.ts)
+- [x] Decide: unpacked install only, or publish to the Chrome Web Store — **Web Store**, with the source **private** on GitHub and the privacy policy hosted separately ([D055](decisions.md#d055))
+- [ ] Connect Cloudflare Pages to the private repo (build output directory `website`, no build command) and set `SITE_URL` in [`src/core/links.ts`](../src/core/links.ts) to the address it returns
 
-Setting `REPO_SLUG` resolves three things at once: the issue-tracker link in the diagnostics panel, the privacy-policy URL the store form requires, and the About links in options ([D046](decisions.md#d046)).
+Setting `SITE_URL` resolves the privacy-policy URL the store form requires and the About privacy link in options. The diagnostics report link no longer depends on it — with the repo private it routes to the contact email instead of a GitHub issue ([D055](decisions.md#d055), revising [D046](decisions.md#d046)).
 
-**Notes:** _Decided 2026-09-03. Because it is going to the store, items 1 and 3 do bind, and [STORE-LISTING.md](STORE-LISTING.md) now carries the copy, the per-permission justifications and the submission checklist._
+**Notes:** _Decided 2026-09-03; distribution revised 2026-09-14 ([D055](decisions.md#d055)). Originally the repo was to stay public so `privacyUrl()` and `issueUrl()` resolved; hosting the policy on its own static site (`website/` → Cloudflare Pages) decouples the public policy URL from repo visibility, so the source can be private. Because it is going to the store, items 1 and 3 do bind, and [STORE-LISTING.md](STORE-LISTING.md) now carries the copy, the per-permission justifications and the submission checklist._
 
 ---
 
