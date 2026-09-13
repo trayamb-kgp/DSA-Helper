@@ -30,13 +30,58 @@ These are GitHub-side settings, done once in the repository UI.
    - `CWS_CLIENT_SECRET`
    - `CWS_REFRESH_TOKEN`
 
-   The refresh token can expire or be revoked; if a release fails at the upload
-   step with an auth error, regenerate it via the same OAuth flow and update the
-   secret. (See `chrome-webstore-upload`'s docs for the exact token steps.)
+   How to obtain each of these is in **Obtaining the four Web Store secrets**
+   below.
 
 3. **Branch protection** — Settings → Branches. On `dev` and `prod`, require the
    **`verify`** status check to pass before merging. Leave the **`e2e`** check
    *non-required* (it is intentionally non-blocking until it proves stable).
+
+### Obtaining the four Web Store secrets
+
+CI needs no secrets. Only the release workflow does — these four. One comes from
+the store dashboard; the other three come from a one-time Google Cloud OAuth
+setup.
+
+**Prerequisite.** The Chrome Web Store API can only *update an existing* item,
+not create one. So the extension must be **uploaded manually once** through the
+dashboard to create the listing before any automated release can update it — the
+first release is manual, the pipeline takes over from the second.
+
+1. **`CWS_EXTENSION_ID`** — in the [CWS Developer Dashboard](https://chrome.google.com/webstore/devconsole)
+   (one-time $5 registration), open your item; the **Item ID** is the 32-char
+   string shown there and in the URL.
+
+2. **`CWS_CLIENT_ID` + `CWS_CLIENT_SECRET`** — in the
+   [Google Cloud Console](https://console.cloud.google.com):
+   1. Create or select a project.
+   2. APIs & Services → **Library** → enable the **Chrome Web Store API**.
+   3. APIs & Services → **OAuth consent screen** → User type **External**; fill
+      app name and your emails. **Then set publishing status to "In production"
+      (publish the app).** ⚠️ While it stays in *Testing*, refresh tokens expire
+      after **7 days** and releases break weekly; in production the token does
+      not expire. No Google verification is needed since you are the only user.
+   4. APIs & Services → **Credentials** → **Create Credentials** → **OAuth
+      client ID** → application type **Desktop app**. Copy the **Client ID** and
+      **Client secret**.
+
+3. **`CWS_REFRESH_TOKEN`** — the OAuth token tied to those credentials. Easiest,
+   in your own terminal:
+   ```bash
+   npx chrome-webstore-upload-keys
+   ```
+   It prompts for the Client ID + secret, opens a browser to authorize with the
+   **same Google account that owns the CWS item**, and prints the refresh token.
+   (Manual alternative: [OAuth 2.0 Playground](https://developers.google.com/oauthplayground)
+   with "Use your own OAuth credentials", scope
+   `https://www.googleapis.com/auth/chromewebstore`, then exchange the code for
+   tokens.)
+
+Add all four under Settings → Environments → `release` → **Environment secrets**
+(names exactly as above). A green release run is your confirmation they are
+correct — the upload step fails loudly on a bad or expired credential. If it
+ever fails with an auth error, regenerate `CWS_REFRESH_TOKEN` and update the
+secret; that is the usual maintenance point.
 
 ---
 
