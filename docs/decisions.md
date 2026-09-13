@@ -2,7 +2,7 @@
 
 **A living document.** This is the historical record of *why* the project is the way it is. `spec.md` says what to build, `architecture.md` says how it's structured, `domain.md` says what the words mean — this file says **why those answers were chosen and what was given up.**
 
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-13
 
 ---
 
@@ -70,6 +70,9 @@
 | [D033](#d033) | Content-relay position stated publicly | Accepted | 2026-09-02 |
 | [D048](#d048) | Licence is PolyForm Strict, not MIT — source-available, no forking | Accepted | 2026-09-06 |
 | [D049](#d049) | Non-affiliation disclaimer; framed "nothing leaves your device" | Accepted | 2026-09-06 |
+| [D052](#d052) | CI/CD is two GitHub Actions workflows; release is tag-triggered on `prod` | Accepted | 2026-09-13 |
+| [D053](#d053) | `package.json` is the single version source; manifest derives from it; CI guards tag == version | Accepted | 2026-09-13 |
+| [D054](#d054) | Release uploads to the Web Store as a draft only; publish and staged rollout stay manual | Accepted | 2026-09-13 |
 | **Implementation** ||||
 | [D034](#d034) | `html2md` converts a DOM element, not an HTML string | Accepted | 2026-09-03 |
 | [D035](#d035) | Fence escaping is narrow by design | Accepted | 2026-09-03 |
@@ -844,6 +847,51 @@ Because several platforms restrict automated access and content reproduction, th
 **Consequences.** `Settings` gains `showChatGptBanner`; `PENDING_PROMPT` and the session entry carry a `showBanner` flag (the flags now form a small `PromptFlags` object rather than a lone boolean); the options page gains a toggle shown only when auto-inject is on. The banner text itself is unchanged.
 
 **Status.** Accepted · 2026-09-06 · see [implementation-plan-3](implementation-plan/implementation-plan-3.md) Phase 2, [D003](#d003), [D050](#d050)
+
+<a id="d052"></a>
+### D052 — CI/CD is two GitHub Actions workflows; release is tag-triggered on `prod`
+
+**Decision.** The project's automation is exactly two GitHub Actions workflows. `ci.yml` runs on every pull request and on pushes to `dev` and `prod`; its blocking job is `npm run verify`, with the offline Playwright `e2e` lane as a **non-blocking** job beside it. `release.yml` runs only on a pushed tag matching `v*`; it re-verifies, builds, packages `dist/`, uploads to the Chrome Web Store, and creates a GitHub Release. The release path is: work merges to `dev`, `dev` merges to `prod`, and a `vX.Y.Z` tag is pushed on the `prod` commit to trigger the release. `main` stays the GitHub default / PR base.
+
+**Context.** The repo had no pipeline. The other three docs already assumed one existed — [D030](#d030) requires adapter fixtures to gate releases "in CI", and the [D047](#d047) addendum committed to running the offline e2e lane on push and the live lane nightly, "not built… until a CI pipeline exists". This is that pipeline.
+
+**Reasoning.** One CI workflow, not two per-branch files: a dev-CI and a prod-CI would be near-identical and drift apart, so a single base-agnostic `pull_request` + `push` trigger covers all branches with one source of truth (DRY). `npm run verify` is reused verbatim as the gate because it is the exact command developers already run locally — the CI gate and the local gate cannot diverge. The release is triggered by a **tag**, not a branch push, because a tag is a deliberate, named act ("this commit is v0.2.0") whereas a branch push happens constantly; tag triggers also give a natural, immutable release identifier. Re-verifying inside `release.yml` rather than trusting the earlier CI run is deliberate: a tag can point at any commit, so the release must prove the exact tagged tree from scratch.
+
+**Alternatives.** Separate CI workflows for `dev` and `prod` (rejected: duplication and drift). Trigger the release on a push to `prod` instead of a tag (rejected: every merge would attempt a release, and there'd be no stable release identifier). Trust the prior CI run and skip re-verify in the release job (rejected: a tag can point at an unverified commit). Leave the tag unguarded against branch (rejected: git tags aren't branch-scoped, so the `v*` trigger fires for a tag cut from any commit; a `git merge-base --is-ancestor <tag> origin/prod` step is a **hard fail** in the release job so a tag not on `prod` cannot release).
+
+**Consequences.** Two files under `.github/workflows/`. Branch protection must mark `verify` required on `dev` and `prod` and leave `e2e` non-required. The offline e2e job needs the bundled Chromium under the new headless mode (extensions don't load under old headless — [D047](#d047)). The live lane and any nightly/scheduled workflow remain deferred, as [D047](#d047) already framed them. The release job checks out with full history (`fetch-depth: 0`) so the ancestry guard can reach `origin/prod`. The release job's ordering and the Web Store behaviour are pinned by [D054](#d054); the version guard by [D053](#d053).
+
+**Status.** Accepted · 2026-09-13 · see [implementation-plan-4](implementation-plan/implementation-plan-4.md), [D030](#d030), [D047](#d047), [D053](#d053), [D054](#d054)
+
+<a id="d053"></a>
+### D053 — `package.json` is the single version source; the manifest derives from it, and CI guards tag == version
+
+**Decision.** The extension version is authored in exactly one place, `package.json`. `manifest.config.ts` reads its `version` from `package.json` rather than hardcoding it. Releases bump the version once (`npm version …`), and `release.yml` fails unless the pushed tag (minus its leading `v`) equals `package.json`'s version.
+
+**Context.** The version was hardcoded in two places — `package.json` and `manifest.config.ts` — both at `0.1.0`. A release under the tag-triggered model ([D052](#d052)) adds a third: the git tag. Three hand-maintained copies of one number is a drift hazard, and a mismatched tag/manifest would ship a build labelled with the wrong version.
+
+**Reasoning.** Deriving the manifest version from `package.json` removes one copy outright and makes `npm version` the single bump command. The CI guard closes the remaining gap between the tag and the source: it is a two-line comparison and is the cheapest possible defence against the most likely release mistake (tagging the wrong version, or forgetting to bump). `check:build` already reads `dist/manifest.json`'s version, so the built artifact's version is independently asserted downstream.
+
+**Alternatives.** Keep both copies and have CI assert all three match (rejected: still two files to bump every release, for no benefit over deriving one from the other). Manual bumping with no guard (rejected: a mismatched tag can ship, defeating the point of a release identifier). Derive `package.json` from the tag at build time (rejected: makes the committed source depend on the tag, so a checkout without the tag has no version).
+
+**Consequences.** `manifest.config.ts` imports `package.json` (`resolveJsonModule` is already on and the file is in the tsconfig `include`). The bump workflow is `npm version <level> --no-git-tag-version` on `dev` (the tag is created deliberately on `prod`, not by `npm version`). `release.yml` gains a version-guard step that must run before the build.
+
+**Status.** Accepted · 2026-09-13 · see [implementation-plan-4](implementation-plan/implementation-plan-4.md) Phase 0 & Phase 3, [D052](#d052)
+
+<a id="d054"></a>
+### D054 — Release uploads to the Web Store as a draft only; publishing and staged rollout stay manual
+
+**Decision.** The release workflow uploads the packaged extension to the Chrome Web Store **draft** and stops. It does not publish. A human then publishes from the CWS dashboard at a staged rollout — starting at 10% per [D030](#d030) — and promotes to 50% → 100% after a smoke pass on the published build.
+
+**Context.** [D030](#d030) mandates a percentage rollout for every release because all users run identical code against sites the project doesn't control, so a bad adapter change reaching 100% is a reputational event. The CWS API can auto-publish, and even set a rollout percentage, but doing so removes the human gate on the one irreversible, user-facing step.
+
+**Reasoning.** Automating the upload removes the tedious, error-prone part (building, zipping, authenticating, uploading) while keeping a person on the part that carries real blast radius (making a build live for real users). This directly honours [D030](#d030)'s staged-rollout requirement without betting it on a first-generation pipeline. Auto-publish is a later optimisation to be earned once several releases have shipped by hand.
+
+**Alternatives.** Upload + auto-publish at 10% (rejected for now: ships to real users with no human gate, on an unproven pipeline). Upload + publish to trusted testers (not chosen: adds a track to manage for little gain at this stage). Upload + publish to 100% (rejected outright: violates [D030](#d030)).
+
+**Consequences.** `release.yml` runs `chrome-webstore-upload` in upload-only mode (no `--auto-publish`) and needs four secrets — extension ID, OAuth client ID, client secret, refresh token — held in a gated `release` environment. The last human step (publish + rollout) is documented in a release runbook. Promotion to API-driven staged rollout is tracked as deferred work in [implementation-plan-4](implementation-plan/implementation-plan-4.md).
+
+**Status.** Accepted · 2026-09-13 · see [implementation-plan-4](implementation-plan/implementation-plan-4.md) Phase 3, [D030](#d030), [D052](#d052)
 
 ---
 
