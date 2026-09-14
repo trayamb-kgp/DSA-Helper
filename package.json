@@ -1,6 +1,6 @@
 {
   "name": "dsa-helper",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "From a DSA problem page to a YouTube search or a ready-to-send ChatGPT review, in one keystroke.",
   "license": "PolyForm-Strict-1.0.0",
   "private": true,

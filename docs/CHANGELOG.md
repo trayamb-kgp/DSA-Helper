@@ -8,6 +8,20 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-09-14
+
+Promotes the extension to a stable **1.0**. One change users will notice since
+0.1.0 (already on the Web Store); the CI/CD release pipeline standing behind this
+build, and the marketing site update, have no effect on the extension itself.
+
+### Changed
+
+- **Emailing a broken-page report no longer depends on a mail app** (2026-09-14) — the diagnostics panel now offers **Open in Gmail** beside **Email the report**. "Email the report" opens your own mail app, which does nothing on a machine with no mail app set up; the new link opens a pre-addressed Gmail compose window in the browser instead, so the report always has somewhere to go. Copy the report first with the button beside them, then paste it in — it still carries no code and no problem text ([D057](decisions.md#d057)).
+
+## [0.1.0] - 2026-09-08
+
+First public release — the full extension as built across the entries below.
+
 ### Added
 
 - **Turn off the ChatGPT review reminder** (2026-09-06) — the "Prompt inserted — review it, then press Enter" banner is now a setting, **on by default**. Leave it on to keep the reminder; turn it off and the message box just fills silently ([D051](decisions.md#d051)).
@@ -32,10 +46,6 @@ All notable changes to DSA Helper. Format follows [Keep a Changelog](https://kee
 - **Project scaffold** (2026-09-02) — Manifest V3 extension building with Vite 8, React 19 and TypeScript 5.9 via `@crxjs/vite-plugin` 2.7.1. Loads unpacked; popup and options pages render; service worker, platform content script, MAIN-world editor bridge and ChatGPT content script are registered but inert. No features yet.
 - **Documentation set** (2026-09-01 – 2026-09-02) — [spec.md](spec.md), [architecture.md](architecture.md), [domain.md](domain.md), [decisions.md](decisions.md), [todo.md](todo.md), [PRIVACY.md](PRIVACY.md), [TESTING.md](TESTING.md) and the [implementation plan](implementation-plan/implementation-plan-1.md).
 - **Placeholder icons** — generated locally by `tools/gen-placeholder-icons.py`, no third-party licence attached ([D009](decisions.md)).
-
-### Changed
-
-- **Emailing a broken-page report no longer depends on a mail app** (2026-09-14) — the diagnostics panel now offers **Open in Gmail** beside **Email the report**. "Email the report" opens your own mail app, which does nothing on a machine with no mail app set up; the new link opens a pre-addressed Gmail compose window in the browser instead, so the report always has somewhere to go. Copy the report first with the button beside them, then paste it in — it still carries no code and no problem text ([D057](decisions.md#d057)).
 
 ### Fixed
 
