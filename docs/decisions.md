@@ -967,6 +967,28 @@ The *choice of host* was left open in D055 (it named Cloudflare Pages, with Netl
 
 ---
 
+<a id="d059"></a>
+### D059 — A third workflow syncs `prod` back to `dev` automatically, as a gated PR
+
+**Decision.** Add a third GitHub Actions workflow, [`sync-prod-to-dev.yml`](../.github/workflows/sync-prod-to-dev.yml), that fires on every push to `prod` and opens a `prod → dev` pull request with auto-merge enabled. The PR still passes through `dev`'s required `verify` check before merging — the sync never bypasses CI. It no-ops when `prod` is already an ancestor of `dev`, and reuses an already-open sync PR instead of opening a duplicate. This revises [D052](#d052)'s "exactly two workflows" and automates the back-merge that was previously manual.
+
+**Context.** [D052](#d052)'s flow is work → `dev` → `prod` → tag. Merging `dev → prod` lands a **merge commit on `prod` that `dev` lacks**, so the branches diverge every release and someone has to merge `prod` back into `dev` by hand — the tangled bidirectional history around `bcb380d` ("Merge branch 'prod' … into dev") and `5b4b91c` is the evidence. The owner chose to keep the merge-commit style of `dev → prod` (rather than the fast-forward-only alternative that would remove divergence at the source) and automate the back-merge instead.
+
+**Reasoning.**
+
+1. **A new file, not an edit to `ci.yml`/`release.yml`.** The three concerns have three triggers (PRs+pushes; tags; push-to-`prod`) and, critically, three permission needs. `ci.yml` is `contents: read` — the hermetic gate that runs on every PR. The sync must *write* branches/PRs (`contents: write`, `pull-requests: write`); widening the gate's permissions to do that would hand write scope to a job that runs on untrusted PR refs. Isolation matches how [D054](#d054) already treats the release job. This does break D052's "exactly two workflows" — recorded here as the deliberate revision.
+2. **A PR, not a direct push.** The back-merge goes through `dev`'s required `verify` rather than force-pushing past it. Conflicts (rare — the back-merge is usually an empty file diff) surface as a normal conflicted PR for a human instead of a red job, and nothing lands on `dev` unverified.
+3. **A non-default token is mandatory, and that is the main cost.** A PR opened with the default `GITHUB_TOKEN` does not trigger other workflows, so `verify` would never run and the required check would deadlock. `SYNC_TOKEN` must therefore be a fine-grained PAT or (preferred) a GitHub App installation token with Contents + Pull-requests read/write on this repo, plus "Allow auto-merge" enabled repo-wide. This is a standing write-capable credential and is treated like the CWS release secrets — scoped and rotatable.
+
+**Alternatives.** *Fast-forward-only `dev → prod`* (rejected by the owner in favour of keeping merge commits; it would have needed no workflow and no token, by making `prod` a strict ancestor-tip of `dev` so nothing ever needs syncing back). *Direct merge + push to `dev` with a bypass token* (rejected: routes around the `verify` gate and needs a protection-bypassing credential). *Fold the sync job into `ci.yml`* (rejected: mixes a mutating job into the read-only gate and over-grants its token). *`peter-evans/create-pull-request`* (not used: it PRs working-tree *changes* on a synthetic branch; a back-merge has no file changes, so a direct `gh pr create --base dev --head prod` between the two long-lived branches is the correct primitive).
+
+**Consequences.** A third file under `.github/workflows/`. A one-time setup is required before it works — create `SYNC_TOKEN`, enable repo auto-merge, and keep `dev` gated on `verify` only (a *required review* on `dev` would strand the sync PR waiting for an approver the token cannot supply); documented in [RELEASING.md](RELEASING.md). The manual back-merge step drops out of the release routine. The workflow only listens to `prod`, and its merge pushes to `dev`, so it cannot re-trigger itself. If the team later switches to fast-forward-only merges, this workflow becomes a harmless no-op (its ancestor guard skips every run) and can be removed.
+
+**Status.** Accepted · 2026-09-14 · revises [D052](#d052) (two → three workflows) · see [`.github/workflows/sync-prod-to-dev.yml`](../.github/workflows/sync-prod-to-dev.yml), [RELEASING.md](RELEASING.md)
+
+---
+
 ## Superseded and deprecated
 
 - **[D046](#d046)** — *partially revised by [D055](#d055)* (2026-09-14). Its single-module, degrade-to-`null` design for outward URLs stands; what changed is where two of them point. The privacy policy is now hosted on a static site (`SITE_URL`) rather than read from `docs/PRIVACY.md` in the repo, and the broken-page report routes to the contact email rather than a GitHub issue — both so the repository can be private. `REPO_SLUG`/`repoUrl()` are gone, replaced by `SITE_URL`.
+- **[D052](#d052)** — *revised by [D059](#d059)* (2026-09-14). Its two-workflow claim ("exactly two GitHub Actions workflows") no longer holds: a third, [`sync-prod-to-dev.yml`](../.github/workflows/sync-prod-to-dev.yml), automates the `prod → dev` back-merge. Everything else in D052 — the CI gate, the tag-triggered release, the branch flow — is unchanged.
