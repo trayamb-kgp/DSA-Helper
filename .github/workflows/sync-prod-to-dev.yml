@@ -1,0 +1,95 @@
+# Sync prod → dev — keep the two branches from diverging after a release (D059).
+#
+# WHY THIS EXISTS
+# The release flow is work → `dev` → `prod` → tag (D052). Merging `dev → prod`
+# lands a merge commit on `prod` that `dev` does not have, so the branches drift
+# and someone has to merge `prod` back into `dev` by hand (the old `bcb380d`
+# commit was exactly that). This workflow does the back-merge automatically —
+# but as a pull request that still passes through `dev`'s required `verify`
+# gate, so it never routes around CI.
+#
+# HOW
+# On every push to `prod` it opens a `prod → dev` pull request and turns on
+# auto-merge, so the PR merges itself once `verify` is green. It no-ops when
+# `prod` is already contained in `dev` (e.g. a fast-forward release, or a run
+# that fires after the sync already happened) and when an open sync PR already
+# exists.
+#
+# TOKEN — REQUIRED ONE-TIME SETUP (see docs/RELEASING.md)
+# `SYNC_TOKEN` must be a fine-grained PAT or a GitHub App installation token,
+# NOT the default GITHUB_TOKEN. A PR opened with GITHUB_TOKEN does not trigger
+# other workflows, so `verify` would never run and the required check would
+# deadlock the PR. The token needs, scoped to this repo:
+#   • Contents: read and write     • Pull requests: read and write
+# Also enable "Allow auto-merge" in repo Settings → General, and make sure `dev`
+# does not require a human approval the token cannot supply (verify-only is
+# fine; a required review would leave the sync PR waiting for an approver).
+#
+# Actions are pinned to commit SHAs (supply-chain hardening), matching the other
+# two workflows; the trailing comment records the human-readable version.
+name: Sync prod → dev
+
+on:
+  push:
+    branches: [prod]
+
+# Never run two syncs at once; let an in-flight one finish rather than cancel it
+# (cancelling mid-PR-creation could leave a half-made PR).
+concurrency:
+  group: sync-prod-to-dev
+  cancel-in-progress: false
+
+# Scope the default token down; the sync itself uses SYNC_TOKEN (see above).
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backmerge:
+    name: open prod → dev back-merge PR (auto-merge on green)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for the ancestry check)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          # Use SYNC_TOKEN so the PR this job opens can trigger `verify`.
+          token: ${{ secrets.SYNC_TOKEN }}
+
+      - name: Fetch both branch refs
+        run: |
+          git fetch origin \
+            +refs/heads/dev:refs/remotes/origin/dev \
+            +refs/heads/prod:refs/remotes/origin/prod
+
+      - name: Skip if prod is already contained in dev
+        id: guard
+        run: |
+          if git merge-base --is-ancestor origin/prod origin/dev; then
+            echo "prod is already an ancestor of dev — nothing to sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open (or reuse) the prod → dev PR and enable auto-merge
+        if: steps.guard.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing="$(gh pr list --base dev --head prod --state open \
+            --json number --jq '.[0].number // empty' || true)"
+          if [ -n "$existing" ]; then
+            echo "Sync PR #$existing already open; ensuring auto-merge is on."
+            number="$existing"
+          else
+            url="$(gh pr create --base dev --head prod \
+              --title 'Sync prod → dev (automated back-merge)' \
+              --body 'Automated by `.github/workflows/sync-prod-to-dev.yml` (D059). Brings the post-release merge commit on `prod` back into `dev` so the branches do not diverge. Merges itself once `verify` passes.')"
+            number="$(printf '%s' "$url" | sed -n 's#.*/pull/\([0-9]*\).*#\1#p')"
+            echo "Opened sync PR #$number ($url)."
+          fi
+          # Merge commit (not squash/rebase) to preserve history; --auto merges
+          # only after the required `verify` check is green.
+          gh pr merge "$number" --auto --merge

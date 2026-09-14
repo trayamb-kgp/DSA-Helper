@@ -35,7 +35,24 @@ These are GitHub-side settings, done once in the repository UI.
 
 3. **Branch protection** — Settings → Branches. On `dev` and `prod`, require the
    **`verify`** status check to pass before merging. Leave the **`e2e`** check
-   *non-required* (it is intentionally non-blocking until it proves stable).
+   *non-required* (it is intentionally non-blocking until it proves stable). On
+   `dev`, **do not require a pull-request review** — the automated `prod → dev`
+   sync (item 4) opens a PR that no human is meant to approve, and a required
+   review would strand it waiting for an approver.
+
+4. **The `prod → dev` sync token** — the [`sync-prod-to-dev.yml`](../.github/workflows/sync-prod-to-dev.yml)
+   workflow ([D059](decisions.md#d059)) opens a back-merge PR on every push to
+   `prod` and auto-merges it once `verify` is green, so the branches never
+   diverge by hand. Two one-time settings make it work:
+   - **`SYNC_TOKEN`** — a repository secret (Settings → Secrets and variables →
+     Actions). It **must not** be the default `GITHUB_TOKEN`: a PR opened with
+     that token does not trigger `verify`, so the required check would never run
+     and the PR would deadlock. Use a **fine-grained PAT** or (preferred) a
+     **GitHub App installation token** scoped to this repo with **Contents:
+     read/write** and **Pull requests: read/write**. Treat it like the CWS
+     secrets above — least privilege, rotate if leaked.
+   - **Allow auto-merge** — Settings → General → Pull Requests → tick *Allow
+     auto-merge*, or the workflow's auto-merge step has nothing to enable.
 
 ### Obtaining the four Web Store secrets
 
@@ -181,7 +198,14 @@ The version lives in **one** place, `package.json`; the manifest derives from it
 
 3. **Commit and push** the bump + changelog on `dev`; let CI go green.
 
-4. **Merge `dev` → `prod`.**
+4. **Merge `dev` → `prod`.** A merge commit here is fine — the
+   [`sync-prod-to-dev.yml`](../.github/workflows/sync-prod-to-dev.yml) workflow
+   ([D059](decisions.md#d059)) fires on this push and opens a `prod → dev` PR
+   that auto-merges once `verify` passes, bringing the merge commit back into
+   `dev` so the branches don't diverge. **You no longer merge `prod` back into
+   `dev` by hand.** (If the sync PR ever shows a conflict or sits unmerged,
+   that's the one case needing a human — resolve or merge it before the next
+   release.)
 
 5. **Tag the `prod` commit and push the tag.** The tag must equal the
    `package.json` version, prefixed with `v`:
