@@ -948,6 +948,25 @@ The *choice of host* was left open in D055 (it named Cloudflare Pages, with Netl
 
 ---
 
+<a id="d058"></a>
+### D058 — The store description names platforms categorically, not as a brand list, after a keyword-spam rejection
+
+**Decision.** In the Chrome Web Store detailed description, name the supported platforms in a single descriptive place (the **WORKS ON** list) and refer to them **categorically** everywhere else — "the sites it works on", "the AI provider whose chat it opens" — rather than repeating the comma-separated run "LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI / ChatGPT". The non-affiliation disclaimer and the contests note are reworded to drop their brand enumerations; their meaning is unchanged. This is a **listing-metadata** decision only — no extension code, manifest, or permission changes.
+
+**Context.** The 1.0.0 submission was rejected on 2026-09-14 for **Keyword Spam** (violation ref "Yellow Argon"), detected by an internal review. The rejection quoted exactly "LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI / ChatGPT" — the enumeration that appeared in both the NOT AFFILIATED line and the CONTESTS note ([D049](#d049) supplied that wording). Version 0.1.0 carried the same text and had been approved; approval is not permanent, and any resubmission re-scores the whole listing against current classifiers, so the same text failed the second time.
+
+**Reasoning.** Chrome's spam detector reads a run of five product names in one span as a keyword list regardless of intent — a legitimate trademark disclaimer and stuffing look identical to it. Removing the *pattern* (the comma-separated run) is faster and higher-success than appealing the *intent*: the disclaimer's legal substance ("independent, not affiliated with the platforms it touches, trademarks belong to their owners, ToS compliance is the user's") survives verbatim in categorical form, so nothing is lost by rewording. The **WORKS ON** list keeps the four platform names because naming supported sites is expected, descriptive metadata — the density problem was the *repetition* across the affiliation and contest lines, not any single mention. Appeal is kept in reserve only if the reworded listing is also rejected.
+
+**The pipeline does not carry this.** `release.yml` uploads only the packaged `dist/` zip to the Web Store draft ([D054](#d054)); it never touches listing fields. The description lives solely in the dashboard, and [STORE-LISTING.md](STORE-LISTING.md) is the hand-maintained source of truth that is copy-pasted into it. So the fix ships by **editing the dashboard description and resubmitting** — no new tag, build, or version bump. The already-uploaded 1.0.0 package is untouched; contact email and privacy-policy URL carried over from the 0.1.0 listing and need no change.
+
+**Alternatives.** *Appeal the rejection* (rejected as the first move: slow, and argues intent against an automated signal that can simply be removed; still available as a fallback). *Drop the disclaimer entirely* (rejected: [D049](#d049) wants the non-affiliation statement and the ToS-responsibility clause — categorical wording keeps both). *Remove platform names from WORKS ON too* (rejected: that list is the one place naming them is genuinely useful to a prospective user, and one descriptive mention is not the spam pattern).
+
+**Consequences.** [STORE-LISTING.md](STORE-LISTING.md) §2 gains a reviewer note and the two reworded lines; the dashboard description must be updated to match before resubmitting. [D049](#d049)'s standalone [`DISCLAIMER.md`](../DISCLAIMER.md) still enumerates the platforms — that is a repo document, not store metadata, and is not subject to this policy; left as-is. Future edits to the listing must not reintroduce a comma-separated brand list outside WORKS ON.
+
+**Status.** Accepted · 2026-09-14 · listing-only, no code · narrows the wording of [D049](#d049) for store metadata · see [STORE-LISTING.md](STORE-LISTING.md), [D054](#d054) (why CI doesn't ship it)
+
+---
+
 ## Superseded and deprecated
 
 - **[D046](#d046)** — *partially revised by [D055](#d055)* (2026-09-14). Its single-module, degrade-to-`null` design for outward URLs stands; what changed is where two of them point. The privacy policy is now hosted on a static site (`SITE_URL`) rather than read from `docs/PRIVACY.md` in the repo, and the broken-page report routes to the contact email rather than a GitHub issue — both so the repository can be private. `REPO_SLUG`/`repoUrl()` are gone, replaced by `SITE_URL`.

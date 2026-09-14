@@ -2,7 +2,7 @@
 
 Everything the submission form asks for, written out so it is reviewed here rather than typed into a text box at midnight. Copy each block verbatim.
 
-**Last updated:** 2026-09-03 · **Target version:** 0.1.0
+**Last updated:** 2026-09-14 · **Target version:** 1.0.0
 
 ---
 
@@ -21,6 +21,8 @@ The short description is 102 characters. It matches `manifest.config.ts`'s `desc
 ---
 
 ## 2. Detailed description
+
+> **Reviewer note (2026-09-14, [D058](decisions.md#d058)).** The 1.0.0 submission was rejected for **keyword spam** — an internal review read the comma-separated run of platform names as a keyword list, quoting "LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI / ChatGPT" from the old NOT AFFILIATED and CONTESTS lines. Those two lines now name the platforms categorically instead of enumerating them. The **WORKS ON** list is the only place the four platforms are named together, because there it is genuinely descriptive (which sites the tool supports). Do not reintroduce a comma-separated brand list elsewhere.
 
 > You're on a LeetCode problem. You're stuck, or you've written something and you're not sure about it. The usual next step is a lot of copying: the title into YouTube, or the statement, the constraints and your code into a chat window, one selection at a time.
 >
@@ -50,10 +52,10 @@ The short description is 102 characters. It matches `manifest.config.ts`'s `desc
 > The extension makes no network requests of its own. There is no backend, no analytics, no telemetry and no error reporting — not as a policy, but structurally: no code path exists that could send anything anywhere. Your settings stay in your browser. Your code is never written to disk, never synced, and never kept after the action that used it.
 >
 > A NOTE ABOUT CONTESTS
-> This extension does not restrict itself during contests and does not detect whether one is running. Using AI assistance in a live contest breaks the rules of LeetCode, Codeforces and CodeChef. It won't stop you and it won't warn you. That decision, and its consequences, are yours.
+> This extension does not restrict itself during contests and does not detect whether one is running. Using AI assistance in a live contest breaks the rules of the sites it works on. It won't stop you and it won't warn you. That decision, and its consequences, are yours.
 >
 > NOT AFFILIATED
-> DSA Helper is an independent tool, not affiliated with, endorsed by, or sponsored by LeetCode, Codeforces, CodeChef, GeeksforGeeks, or OpenAI / ChatGPT. All trademarks belong to their respective owners. It acts only on content already shown to you, at your request, and you are responsible for using it in line with each site's terms of service.
+> DSA Helper is an independent tool. It is not affiliated with, endorsed by, or sponsored by any of the coding platforms it works on, or by the AI provider whose chat it opens. All trademarks belong to their respective owners. It acts only on content already shown to you, at your request, and you are responsible for using it in line with each site's terms of service.
 
 ---
 
